@@ -5,18 +5,10 @@
 pub mod dos;
 pub mod dpkey;
 extern crate rlibc;
-extern crate alloc;
-
-// use crate::dos::allocator::GLOBAL_ALLOCATOR;
-// use crate::dos::cooperative_multitasking::TASKING;
 
 #[link_section = ".startup"]
 #[no_mangle]
 fn _start() -> ! {
-    // unsafe {
-    //     GLOBAL_ALLOCATOR.init();
-    //     TASKING.init(); // Relies on the allocator
-    // }
     extern "Rust" {
         fn main() -> ();
     }
