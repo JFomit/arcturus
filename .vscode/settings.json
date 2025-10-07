@@ -1,0 +1,5 @@
+{
+    "rust-analyzer.cargo.target": "i586-unknown-none-code16",
+    "rust-analyzer.check.allTargets": false,
+    "cSpell.diagnosticLevel": "Hint"
+}

@@ -3,4 +3,4 @@ build-std = ["core", "compiler_builtins", "alloc"]
 
 [build]
 target = "i586-rust_dos.json"
-rustflags = ["-C", "link-arg=-Tlink.x"]
+rustflags = ["-C", "link-arg=-Tlink.x", "-Zlocation-detail=none", "-Zfmt-debug=none"]

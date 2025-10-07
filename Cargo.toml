@@ -7,7 +7,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [profile.release]
-opt-level = "z"
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true  # Automatically strip symbols from the binary.
 
 [dependencies]
 rlibc = "1.0.0"
