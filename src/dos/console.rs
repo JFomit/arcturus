@@ -11,16 +11,28 @@ macro_rules! print {
 #[macro_export]
 macro_rules! println {
     ($fmt:expr) => {
-        print!(concat!($fmt, "\r\n"))
+        crate::print!(concat!($fmt, "\r\n"))
     };
     ($fmt:expr, $($arg:tt)*) => {
-        print!(concat!($fmt, "\r\n"), $($arg)*)
+        crate::print!(concat!($fmt, "\r\n"), $($arg)*)
     };
 }
 
 pub fn _print(args: fmt::Arguments) {
     let mut writer = DosWriter {};
     writer.write_fmt(args).unwrap();
+}
+
+pub fn read_no_echo() -> u8 {
+    let mut c: u8;
+    unsafe {
+        asm!(
+            "mov    ah, 8",
+            "int    0x21",
+            out("al") c
+        );
+    }
+    c
 }
 
 struct DosWriter;

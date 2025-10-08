@@ -2,5 +2,10 @@
 build-std = ["core", "compiler_builtins"]
 
 [build]
-target = "i586-rust_dos.json"
-rustflags = ["-C", "link-arg=-Tlink.x", "-Zlocation-detail=none", "-Zfmt-debug=none"]
+target = "i386-rust_dos.json"
+rustflags = [
+    "-C",
+    "link-arg=-Tlink.x", 
+    "-Zlocation-detail=none", 
+    # "-Zfmt-debug=none"
+]

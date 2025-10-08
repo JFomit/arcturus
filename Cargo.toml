@@ -10,7 +10,10 @@ edition = "2018"
 opt-level = "s"
 lto = true
 codegen-units = 1
-strip = true  # Automatically strip symbols from the binary.
+# strip = true  # Automatically strip symbols from the binary.
+debug = 2
 
 [dependencies]
 rlibc = "1.0.0"
+gdbstub = { version = "=0.7.7", default-features = false }
+gdbstub_arch = {version = "0.3.2", default-features = false }
