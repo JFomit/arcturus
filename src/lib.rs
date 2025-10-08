@@ -1,21 +1,30 @@
 #![no_std]
 #![feature(alloc_error_handler)]
+#![no_main]
+
+use crate::init::run;
 
 #[macro_use]
 pub mod dos;
 pub mod dpkey;
+mod init;
+mod stub;
+
 extern crate rlibc;
 
 #[link_section = ".startup"]
 #[no_mangle]
 fn _start() -> ! {
-    extern "Rust" {
-        fn main() -> ();
-    }
+    run().unwrap();
+
     unsafe {
         main();
     }
     dos::exit(0);
+}
+
+unsafe extern "C" {
+    unsafe fn main();
 }
 
 #[macro_export]

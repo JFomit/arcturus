@@ -1,21 +1,10 @@
-#![no_std]
-#![no_main]
-
 use gdbstub::stub::{
     state_machine::GdbStubStateMachine, DisconnectReason, GdbStubBuilder, MultiThreadStopReason,
 };
-use rust_dos::{dos::console::read_no_echo, *};
 
 use crate::stub::{conn::ComConnection, gdb::DummyTarget};
-mod stub;
 
-entry!(main);
-
-fn main() {
-    run().unwrap();
-}
-
-fn run() -> Result<(), i32> {
+pub fn run() -> Result<(), i32> {
     let mut target = DummyTarget::new();
 
     let com = ComConnection::new(0);

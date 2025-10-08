@@ -2,7 +2,6 @@ use gdbstub::target;
 use gdbstub::target::ext::base::singlethread::SingleThreadBase;
 use gdbstub::target::Target;
 use gdbstub::target::TargetResult;
-use rust_dos::println;
 
 pub struct DummyTarget {}
 
