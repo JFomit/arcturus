@@ -5,6 +5,8 @@ use gdbstub::target::ext::base::singlethread::SingleThreadBase;
 use gdbstub::target::Target;
 use gdbstub::target::TargetResult;
 
+use crate::bios;
+
 pub struct DosTarget {
     break_stack_head: u8,
 }
@@ -129,10 +131,16 @@ impl SingleThreadBase for DosTarget {
     #[inline(never)]
     fn read_addrs(&mut self, start_addr: u32, data: &mut [u8]) -> TargetResult<usize, Self> {
         let mut count = 0;
-        // let data = &mut *data;
         unsafe {
             let mut address = start_addr as *mut u8;
+            let sizes = bios::mem::request_upper_memory_size()?;
+            let total_size = (sizes.extended1 as u32) * 1024 + (sizes.extended2 as u32) * 64 * 1024;
+
             for item in data {
+                if address as u32 >= total_size {
+                    break;
+                }
+
                 *item = *address;
                 address = address.add(1);
                 count += 1;

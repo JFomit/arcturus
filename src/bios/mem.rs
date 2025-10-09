@@ -7,6 +7,7 @@ pub struct MemorySizes {
     pub extended2: u16,
 }
 
+// source: https://wiki.osdev.org/Detecting_Memory_(x86)#Detecting_Upper_Memory
 pub fn request_upper_memory_size() -> Result<MemorySizes, ()> {
     let mut lower: u16;
     let mut upper: u16;
@@ -22,7 +23,7 @@ pub fn request_upper_memory_size() -> Result<MemorySizes, ()> {
             "je     {0}",
             "cmp    ah, 0x80", // invalid command
             "je     {0}",
-            "jcxz   2",        // was the cx register invalid?
+            "jcxz   2f",        // was the cx register invalid?
             "mov    ax, cx",
             "mov    bx, dx",
             "2:",

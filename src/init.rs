@@ -1,3 +1,5 @@
+use core::arch::asm;
+
 use gdbstub::stub::{
     state_machine::GdbStubStateMachine, DisconnectReason, GdbStubBuilder, MultiThreadStopReason, SingleThreadStopReason,
 };
@@ -27,6 +29,8 @@ pub fn init_dbg() -> Result<(), i32> {
             GdbStubStateMachine::Idle(mut gdb) => {
                 let mut byte = gdb.borrow_conn().read();
                 loop {
+                    unsafe { asm!("pause"); }
+
                     if byte.is_err_and(|_| {
                         let flags = gdb.borrow_conn().status();
                         flags.contains(ComStatusFlags::TimeOutError)
