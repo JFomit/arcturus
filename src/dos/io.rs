@@ -25,3 +25,30 @@ pub fn outw(data: u16, port: usize) {
         asm!("out dx, ax", in("dx") port, in("ax") data);
     }
 }
+
+pub fn com0_read() -> u8 {
+    let mut result: u8;
+    unsafe {
+        asm!(
+            "int   0x21",
+            in("ah") 0x3u8,
+            out("al") result,
+            
+            clobber_abi("C")
+        );
+    }
+
+    result
+}
+
+pub fn com0_write(b: u8) {
+    unsafe {
+        asm!(
+            "int    0x21",
+            in("ah") 0x4u8,
+            in("dl") b,
+
+            clobber_abi("C")
+        )
+    }
+}

@@ -4,10 +4,10 @@ use gdbstub::stub::{
     state_machine::GdbStubStateMachine, DisconnectReason, GdbStubBuilder, MultiThreadStopReason, SingleThreadStopReason,
 };
 
-use crate::stub::{
-    conn::{ComConnection},
+use crate::{bios, stub::{
+    conn::{ComConnection, SimpleComConnection},
     gdb::DosTarget,
-};
+}};
 use crate::bios::com::ComStatusFlags;
 
 pub fn init_dbg() -> Result<(), i32> {
@@ -30,8 +30,6 @@ pub fn init_dbg() -> Result<(), i32> {
             GdbStubStateMachine::Idle(mut gdb) => {
                 let mut byte = gdb.borrow_conn().read();
                 loop {
-                    unsafe { asm!("pause"); }
-
                     if byte.is_err_and(|_| {
                         let flags = gdb.borrow_conn().status();
                         flags.contains(ComStatusFlags::TimeOutError)
