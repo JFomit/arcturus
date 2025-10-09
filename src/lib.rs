@@ -1,5 +1,6 @@
 #![no_std]
 #![feature(alloc_error_handler)]
+#![feature(ptr_metadata)]
 #![no_main]
 
 use crate::init::init_dbg;

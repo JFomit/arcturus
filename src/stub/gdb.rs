@@ -1,3 +1,5 @@
+use core::mem::swap;
+
 use gdbstub::target;
 use gdbstub::target::ext::base::singlethread::SingleThreadBase;
 use gdbstub::target::Target;
@@ -14,21 +16,48 @@ impl DosTarget {
         }
     }
 
-    pub fn push_breakpoint(&mut self, addr: u32) -> Result<(), ()> {
+    pub fn add_breakpoint(&mut self, addr: u32) -> TargetResult<bool, Self> {
         unsafe {
             let buf = &raw mut BREAKS;
             let len = (*buf).len();
+            let opcode_ptr = addr as *mut u8;
+            println!("Break at {}, opcode is {}", addr, *opcode_ptr);
             if self.break_stack_head as usize > len {
-                Err(())
+                Ok(false)
             } else {
-                let old = *(addr as *mut u8);
                 (*buf)[self.break_stack_head as usize] = Breakpoint {
                     addr: addr,
-                    opcode: old,
+                    opcode: *opcode_ptr,
                 };
                 self.break_stack_head += 1;
-                Ok(())
+                *opcode_ptr = 0xCC;
+
+                Ok(true)
             }
+        }
+    }
+    pub fn remove_breakpoint(&mut self, addr: u32) -> TargetResult<bool, Self> {
+        unsafe {
+            let buf = &raw mut BREAKS;
+            let breakpoint = (*buf).iter_mut().find(|b| b.addr == addr);
+
+            if let Some(b) = breakpoint {
+                let to_fill = b.opcode;
+                // the breakpoint is the last one
+                if self.break_stack_head == 1 {
+                    self.break_stack_head = 0;
+                } else {
+                    let top = &mut (*buf)[(self.break_stack_head - 1) as usize];
+                    swap(b, top);
+                    self.break_stack_head -= 1;
+                }
+
+                *(addr as *mut u8) = to_fill;
+
+                return Ok(true);
+            }
+
+            Ok(false) // not found
         }
     }
 }
@@ -99,14 +128,18 @@ impl SingleThreadBase for DosTarget {
 
     #[inline(never)]
     fn read_addrs(&mut self, start_addr: u32, data: &mut [u8]) -> TargetResult<usize, Self> {
+        let mut count = 0;
+        // let data = &mut *data;
         unsafe {
             let mut address = start_addr as *mut u8;
-            for item in &mut *data {
+            for item in data {
                 *item = *address;
                 address = address.add(1);
+                count += 1;
             }
         }
-        Ok(data.len())
+        println!("> read_addrs");
+        Ok(count)
     }
 
     #[inline(never)]
@@ -128,21 +161,11 @@ impl target::ext::breakpoints::Breakpoints for DosTarget {
 impl target::ext::breakpoints::SwBreakpoint for DosTarget {
     #[inline(never)]
     fn add_sw_breakpoint(&mut self, addr: u32, _kind: usize) -> TargetResult<bool, Self> {
-        if let Err(()) = self.push_breakpoint(addr) {
-            return Ok(false);
-        }
-        unsafe {
-            let opcode_ptr = addr as *mut u8;
-            println!("Set breakpoint at {}, opcode was {}.", addr, *opcode_ptr);
-            *opcode_ptr = 0xCC;
-        }
-
-        Ok(true)
+        self.add_breakpoint(addr)
     }
 
     #[inline(never)]
-    fn remove_sw_breakpoint(&mut self, _addr: u32, _kind: usize) -> TargetResult<bool, Self> {
-        // TODO: add support for removing breakpoints
-        Ok(false)
+    fn remove_sw_breakpoint(&mut self, addr: u32, _kind: usize) -> TargetResult<bool, Self> {
+        self.remove_breakpoint(addr)
     }
 }
