@@ -1,6 +1,6 @@
 #![no_std]
 #![feature(alloc_error_handler)]
-#![feature(ptr_metadata)]
+#![feature(asm_goto_with_outputs)]
 #![no_main]
 
 use crate::init::init_dbg;
@@ -8,6 +8,7 @@ use crate::init::init_dbg;
 #[macro_use]
 pub mod dos;
 pub mod dpkey;
+pub mod bios;
 mod init;
 mod stub;
 
