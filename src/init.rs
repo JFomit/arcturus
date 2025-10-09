@@ -1,16 +1,19 @@
 use gdbstub::stub::{
-    state_machine::GdbStubStateMachine, DisconnectReason, GdbStubBuilder, MultiThreadStopReason,
+    state_machine::GdbStubStateMachine, DisconnectReason, GdbStubBuilder, MultiThreadStopReason, SingleThreadStopReason,
 };
 
-use crate::stub::{conn::ComConnection, gdb::DummyTarget};
+use crate::stub::{
+    conn::{ComConnection, ComStatusFlags},
+    gdb::DosTarget,
+};
 
-pub fn run() -> Result<(), i32> {
-    let mut target = DummyTarget::new();
+pub fn init_dbg() -> Result<(), i32> {
+    let mut target = DosTarget::new();
 
     let com = ComConnection::new(0);
 
     let mut buf = [0; 1024];
-    let gdb: gdbstub::stub::GdbStub<'_, DummyTarget, ComConnection> = GdbStubBuilder::new(com)
+    let gdb: gdbstub::stub::GdbStub<'_, DosTarget, ComConnection> = GdbStubBuilder::new(com)
         .with_packet_buffer(&mut buf)
         .build()
         .map_err(|_| 1)?;
@@ -22,8 +25,20 @@ pub fn run() -> Result<(), i32> {
     let res = loop {
         gdb = match gdb {
             GdbStubStateMachine::Idle(mut gdb) => {
-                let byte = gdb.borrow_conn().read().map_err(|_| 3)?;
-                match gdb.incoming_data(&mut target, byte) {
+                let mut byte = gdb.borrow_conn().read();
+                loop {
+                    if byte.is_err_and(|_| {
+                        let flags = gdb.borrow_conn().status();
+                        flags.contains(ComStatusFlags::TimeOutError)
+                            | flags.contains(ComStatusFlags::TransmitterHoldingRegisterEmpty)
+                    }) {
+                        byte = gdb.borrow_conn().read();
+                        continue;
+                    }
+                    break;
+                }
+
+                match gdb.incoming_data(&mut target, byte.unwrap()) {
                     Ok(gdb) => gdb,
                     Err(e) => break Err(e),
                 }
@@ -35,7 +50,7 @@ pub fn run() -> Result<(), i32> {
                 }
             }
             GdbStubStateMachine::CtrlCInterrupt(gdb) => {
-                match gdb.interrupt_handled(&mut target, None::<MultiThreadStopReason<u32>>) {
+                match gdb.interrupt_handled(&mut target, None::<SingleThreadStopReason<u32>>) {
                     Ok(gdb) => gdb,
                     Err(e) => break Err(e),
                 }

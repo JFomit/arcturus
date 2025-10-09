@@ -8,6 +8,6 @@ rustflags = [
     "link-arg=-Tlink.x",
     "-C",
     "linker-plugin-lto",
-    "-Zlocation-detail=none", 
-    "-Zfmt-debug=none"
+    # "-Zlocation-detail=none", 
+    # "-Zfmt-debug=none"
 ]

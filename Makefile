@@ -21,4 +21,4 @@ clean:
 	rm -rf gdbstub.elf
 
 dis: all
-	objdump -d -M intel -m i8086 gdbstub.elf > gdbstub.lst
+	objdump -S -D -M intel -m i8086 gdbstub.elf > gdbstub.lst

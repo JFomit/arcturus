@@ -2,7 +2,7 @@
 #![feature(alloc_error_handler)]
 #![no_main]
 
-use crate::init::run;
+use crate::init::init_dbg;
 
 #[macro_use]
 pub mod dos;
@@ -15,7 +15,7 @@ extern crate rlibc;
 #[link_section = ".startup"]
 #[no_mangle]
 fn _start() -> ! {
-    run().unwrap();
+    init_dbg().unwrap();
 
     unsafe {
         main();
