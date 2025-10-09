@@ -5,9 +5,10 @@ use gdbstub::stub::{
 };
 
 use crate::stub::{
-    conn::{ComConnection, ComStatusFlags},
+    conn::{ComConnection},
     gdb::DosTarget,
 };
+use crate::bios::com::ComStatusFlags;
 
 pub fn init_dbg() -> Result<(), i32> {
     let mut target = DosTarget::new();

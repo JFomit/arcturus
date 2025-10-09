@@ -102,3 +102,19 @@ pub fn com_read(port: u8) -> Result<u8, ()> {
         Ok(res)
     }
 }
+
+pub fn com_status(port: u8) -> ComStatusFlags {
+    let mut flags: u16;
+
+    unsafe {
+        asm!(
+            "mov    ah, 0x3",
+            "int    0x14",
+            in("dx") port as u16,
+            out("ax") flags,
+            clobber_abi("C")
+        );
+    }
+
+    ComStatusFlags::from_bits_truncate(flags)
+}
