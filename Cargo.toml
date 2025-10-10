@@ -21,6 +21,7 @@ rlibc = "1.0.0"
 gdbstub = { version = "=0.7.7", default-features = false }
 gdbstub_arch = {version = "0.3.2", default-features = false }
 bitflags = "2.9.3"
+struct_layout = "0.1.0"
 
 [build-dependencies]
 nasm-rs = "0.3.1"

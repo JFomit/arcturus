@@ -1,7 +1,7 @@
 
 .PHONEY: clean all rust asm builddir
 all: rust asm
-	ld.lld -Tlink.x target/i386-dos/release/libgdbstub.a target/debugee.o -o gdbstub.elf
+	ld.lld -Tlink.x target/i386-dos/release/libgdbstub.a target/debugee.o target/dbrt.o -o gdbstub.elf
 	objcopy -O binary --binary-architecture=i386 gdbstub.elf gdbstub.com
 	objdump -S -D -M intel -m i8086 gdbstub.elf > gdbstub.elf.lst
 	objdump -D -b binary -m i8086 -M intel gdbstub.com > gdbstub.com.lst
@@ -9,9 +9,12 @@ all: rust asm
 rust:
 	cargo build --release
 
-asm: builddir target/debugee.o
+asm: builddir target/debugee.o target/dbrt.o
 
 target/debugee.o: src/debugee.nasm
+	nasm -felf32 -g $^ -o $@
+
+target/dbrt.o: src/dbrt.nasm
 	nasm -felf32 -g $^ -o $@
 
 builddir:

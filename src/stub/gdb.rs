@@ -1,21 +1,26 @@
 use core::mem::swap;
 
-use gdbstub::target;
-use gdbstub::target::ext::base::singlethread::SingleThreadBase;
-use gdbstub::target::Target;
+use gdbstub::stub::state_machine::GdbStubStateMachine;
+use gdbstub::stub::{DisconnectReason, GdbStubBuilder, SingleThreadStopReason};
 use gdbstub::target::TargetResult;
 
-use crate::bios;
+use crate::bios::com::ComStatusFlags;
+use crate::stub::conn::ComConnection;
 
 pub struct DosTarget {
     break_stack_head: u8,
+    gdb: GdbStubStateMachine<'static, DosTarget, ComConnection>,
 }
 
 impl DosTarget {
-    pub fn new() -> DosTarget {
-        DosTarget {
+    pub fn new() -> Result<DosTarget, &'static str> {
+        let mut target = DosTarget {
             break_stack_head: 0,
-        }
+            gdb: unsafe { core::mem::zeroed() },
+        };
+
+        unsafe { Self::init_dbg(&mut target)? };
+        Ok(target)
     }
 
     pub fn add_breakpoint(&mut self, addr: u32) -> TargetResult<bool, Self> {
@@ -62,6 +67,77 @@ impl DosTarget {
             Ok(false) // not found
         }
     }
+
+    unsafe fn init_dbg(target: &mut DosTarget) -> Result<(), &'static str> {
+        let com = ComConnection::new(0);
+
+        let gdb: gdbstub::stub::GdbStub<'_, DosTarget, ComConnection> = GdbStubBuilder::new(com)
+            .with_packet_buffer(&mut PACKETS)
+            .build()
+            .map_err(|_| "Failed to construct gdb stub.")?;
+
+        target.gdb = gdb
+            .run_state_machine(target)
+            .map_err(|_| "State machine failure")?;
+        Ok(())
+    }
+
+    fn gdb_loop(&mut self) -> Result<(), &'static str> {
+        let mut gdb = self.gdb;
+        let res = loop {
+            gdb = match gdb {
+                GdbStubStateMachine::Idle(mut gdb) => {
+                    let mut byte = gdb.borrow_conn().read();
+                    loop {
+                        if byte.is_err_and(|_| {
+                            let flags = gdb.borrow_conn().status();
+                            flags.contains(ComStatusFlags::TimeOutError)
+                                | flags.contains(ComStatusFlags::TransmitterHoldingRegisterEmpty)
+                        }) {
+                            byte = gdb.borrow_conn().read();
+                            continue;
+                        }
+                        break;
+                    }
+
+                    match gdb.incoming_data(self, byte.unwrap()) {
+                        Ok(gdb) => gdb,
+                        Err(e) => break Err(e),
+                    }
+                }
+                GdbStubStateMachine::Running(gdb) => {
+                    match gdb.report_stop(self, SingleThreadStopReason::DoneStep) {
+                        Ok(gdb) => gdb,
+                        Err(e) => break Err(e),
+                    }
+                }
+                GdbStubStateMachine::CtrlCInterrupt(gdb) => {
+                    match gdb.interrupt_handled(self, None::<SingleThreadStopReason<u32>>) {
+                        Ok(gdb) => gdb,
+                        Err(e) => break Err(e),
+                    }
+                }
+                GdbStubStateMachine::Disconnected(gdb) => break Ok(gdb.get_reason()),
+            }
+        };
+
+        match res {
+            Ok(disconnect_reason) => match disconnect_reason {
+                DisconnectReason::Disconnect => println!("GDB Disconnected"),
+                DisconnectReason::TargetExited(_) => println!("Target exited"),
+                DisconnectReason::TargetTerminated(_) => println!("Target halted"),
+                DisconnectReason::Kill => println!("GDB sent a kill command"),
+            },
+            Err(e) => {
+                if e.is_target_error() {
+                    Err("Target raised a fatal error.")
+                } else {
+                    println!("{}", e);
+                    Err("Gdb stub error.")
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -71,109 +147,4 @@ struct Breakpoint {
 }
 
 static mut BREAKS: [Breakpoint; 128] = [Breakpoint { addr: 0, opcode: 0 }; 128];
-
-impl Target for DosTarget {
-    type Arch = gdbstub_arch::x86::X86_SSE;
-    type Error = &'static str;
-
-    #[inline(always)]
-    fn base_ops(&mut self) -> target::ext::base::BaseOps<'_, Self::Arch, Self::Error> {
-        target::ext::base::BaseOps::SingleThread(self)
-    }
-
-    // disable `QStartNoAckMode` in order to save space
-    #[inline(always)]
-    fn use_no_ack_mode(&self) -> bool {
-        false
-    }
-
-    // disable X packet optimization in order to save space
-    #[inline(always)]
-    fn use_x_upcase_packet(&self) -> bool {
-        false
-    }
-
-    #[inline(always)]
-    fn support_breakpoints(
-        &mut self,
-    ) -> Option<target::ext::breakpoints::BreakpointsOps<'_, Self>> {
-        Some(self)
-    }
-}
-
-// NOTE: to try and make this a marginally more realistic estimate of
-// `gdbstub`'s library overhead, non-IDET methods are marked as
-// `#[inline(never)]` to prevent the optimizer from too aggressively coalescing
-// the stubbed implementations.
-//
-// EXCEPTION: `list_active_threads` accepts a closure arg, and should be
-// be inlined for smaller codegen
-
-impl SingleThreadBase for DosTarget {
-    #[inline(never)]
-    fn read_registers(
-        &mut self,
-        _regs: &mut gdbstub_arch::x86::reg::X86CoreRegs,
-    ) -> TargetResult<(), Self> {
-        println!("> read_registers");
-        Ok(())
-    }
-
-    #[inline(never)]
-    fn write_registers(
-        &mut self,
-        _regs: &gdbstub_arch::x86::reg::X86CoreRegs,
-    ) -> TargetResult<(), Self> {
-        println!("> write_registers");
-        Ok(())
-    }
-
-    #[inline(never)]
-    fn read_addrs(&mut self, start_addr: u32, data: &mut [u8]) -> TargetResult<usize, Self> {
-        let mut count = 0;
-        unsafe {
-            let mut address = start_addr as *mut u8;
-            let sizes = bios::mem::request_upper_memory_size()?;
-            let total_size = (sizes.extended1 as u32) * 1024 + (sizes.extended2 as u32) * 64 * 1024;
-
-            for item in data {
-                if address as u32 >= total_size {
-                    break;
-                }
-
-                *item = *address;
-                address = address.add(1);
-                count += 1;
-            }
-        }
-        println!("> read_addrs");
-        Ok(count)
-    }
-
-    #[inline(never)]
-    fn write_addrs(&mut self, _start_addr: u32, _data: &[u8]) -> TargetResult<(), Self> {
-        println!("> write_addrs");
-        Ok(())
-    }
-}
-
-impl target::ext::breakpoints::Breakpoints for DosTarget {
-    #[inline(always)]
-    fn support_sw_breakpoint(
-        &mut self,
-    ) -> Option<target::ext::breakpoints::SwBreakpointOps<'_, Self>> {
-        Some(self)
-    }
-}
-
-impl target::ext::breakpoints::SwBreakpoint for DosTarget {
-    #[inline(never)]
-    fn add_sw_breakpoint(&mut self, addr: u32, _kind: usize) -> TargetResult<bool, Self> {
-        self.add_breakpoint(addr)
-    }
-
-    #[inline(never)]
-    fn remove_sw_breakpoint(&mut self, addr: u32, _kind: usize) -> TargetResult<bool, Self> {
-        self.remove_breakpoint(addr)
-    }
-}
+static mut PACKETS: [u8; 1024] = [0; 1024];
