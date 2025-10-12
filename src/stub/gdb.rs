@@ -6,6 +6,7 @@ use gdbstub::target::Target;
 use gdbstub::target::TargetResult;
 
 use crate::bios;
+use crate::stub::Eflags;
 use crate::stub::TargetRegisters;
 
 #[repr(C)]
@@ -118,7 +119,9 @@ impl Target for DosTarget {
 // be inlined for smaller codegen
 
 impl SingleThreadBase for DosTarget {
-    fn support_resume(&mut self) -> Option<target::ext::base::singlethread::SingleThreadResumeOps<'_, Self>> {
+    fn support_resume(
+        &mut self,
+    ) -> Option<target::ext::base::singlethread::SingleThreadResumeOps<'_, Self>> {
         Some(self)
     }
 
@@ -227,6 +230,20 @@ impl target::ext::breakpoints::SwBreakpoint for DosTarget {
 impl target::ext::base::singlethread::SingleThreadResume for DosTarget {
     fn resume(&mut self, _signal: Option<gdbstub::common::Signal>) -> Result<(), Self::Error> {
         println!("> resume");
+        Ok(())
+    }
+    fn support_single_step(
+        &mut self,
+    ) -> Option<target::ext::base::singlethread::SingleThreadSingleStepOps<'_, Self>> {
+        Some(self)
+    }
+}
+
+impl target::ext::base::singlethread::SingleThreadSingleStep for DosTarget {
+    fn step(&mut self, _signal: Option<gdbstub::common::Signal>) -> Result<(), Self::Error> {
+        // Set EFLAGS
+        println!("> step");
+        self.registers().eflags |= Eflags::TRAP.bits();
         Ok(())
     }
 }

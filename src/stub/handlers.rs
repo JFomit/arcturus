@@ -11,7 +11,7 @@ use crate::{
 #[no_mangle]
 pub unsafe extern "C" fn break_handler() {
     DOS_TARGET.registers().eip -= 1;
-    send_stop();
+    send_stop(SingleThreadStopReason::SwBreak(()));
     let r = gdb_handler_loop();
 
     match r {
@@ -22,24 +22,28 @@ pub unsafe extern "C" fn break_handler() {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn step_over_handler() {}
+pub unsafe extern "C" fn step_over_handler() {
+    send_stop(SingleThreadStopReason::DoneStep);
+    match gdb_handler_loop() {
+        Ok(true) => (),
+        Ok(false) => _exit(0),
+        Err(str) => panic!("{:?}", str),
+    }
+}
 
-fn send_stop() {
-    unsafe {
+fn send_stop(reason: SingleThreadStopReason<u32>) {
         GDB_STATE_MACHINE.replace(match GDB_STATE_MACHINE.take().unwrap() {
             GdbStubStateMachine::Running(gdb) => {
-                match gdb.report_stop(&mut DOS_TARGET, SingleThreadStopReason::SwBreak(())) {
+            match gdb.report_stop(unsafe {&mut DOS_TARGET}, reason) {
                     Ok(gdb) => Some(gdb),
                     Err(e) => {
                         panic!("{:?}", e);
                     }
                 }
             }
-
             gdb => Some(gdb),
         });
     }
-}
 
 fn gdb_handler_loop() -> Result<bool, &'static str> {
     let res = loop {

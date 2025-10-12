@@ -107,9 +107,6 @@ int3_handler:
 	call  		dword break_handler
 
 
-	; lea			ebp,				[esp+36]		; flags
-	; or			word [bp],			100h
-
 	mov			eax,				[DOS_TARGET+28]
 	mov			[esp+0],			eax			; eax
 	mov			eax,				[DOS_TARGET+24]
@@ -145,6 +142,9 @@ int3_handler:
 	mov			fs,					ax
 	mov			ax,					[DOS_TARGET+50] ; gs
 	mov			gs,					ax
+
+	lea			ebp,				[esp+36]		; flags
+	or			word [bp],			100h
 
 	popad
 	iret
