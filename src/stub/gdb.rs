@@ -116,6 +116,7 @@ impl SingleThreadBase for DosTarget {
         _regs: &mut gdbstub_arch::x86::reg::X86CoreRegs,
     ) -> TargetResult<(), Self> {
         println!("> read_registers");
+
         Ok(())
     }
 

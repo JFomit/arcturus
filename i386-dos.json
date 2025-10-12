@@ -18,5 +18,19 @@
   "target-pointer-width": "32",
   "vendor": "unknown",
   "panic-strategy": "abort",
-  "disable-redzone": true
+  "disable-redzone": true,
+  "pre-link-args": {
+    "ld": [
+      "-Wl,--as-needed",
+      "-Wl,-z,noexecstack",
+      "-Wl,--gc-sections",
+      "-m16",
+      "-nostdlib",
+      "-march=i386",
+      "-ffreestanding",
+      "-fno-pie",
+      "-mattr=+x87,+16bit-mode",
+      "-Tcom.ld"
+    ]
+  }
 }
