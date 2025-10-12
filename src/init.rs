@@ -7,13 +7,15 @@ use crate::bios::com::ComStatusFlags;
 use crate::local_cell::LocalCell;
 use crate::stub::{conn::ComConnection, gdb::DosTarget};
 
+#[no_mangle]
+static mut DOS_TARGET: DosTarget = unsafe { core::mem::zeroed() };
 static GDB_STATE_MACHINE: LocalCell<
     Option<GdbStubStateMachine<'static, DosTarget, ComConnection>>,
 > = LocalCell::new(None);
 static mut BUF: [u8; 1024] = [0; 1024];
 
 pub fn init_dbg() -> Result<(), i32> {
-    let mut target = DosTarget::new();
+    unsafe { DOS_TARGET = DosTarget::new() };
 
     let com = ComConnection::new(0);
 
@@ -24,7 +26,8 @@ pub fn init_dbg() -> Result<(), i32> {
 
     println!("Starting GDB session...");
 
-    GDB_STATE_MACHINE.replace(Some(gdb.run_state_machine(&mut target).map_err(|_| 2)?));
+    let mut target = unsafe { &mut DOS_TARGET };
+    GDB_STATE_MACHINE.replace(Some(gdb.run_state_machine(target).map_err(|_| 2)?));
 
     let res = loop {
         let mut r#break = None;

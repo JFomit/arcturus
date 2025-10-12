@@ -18,16 +18,31 @@ extern crate rlibc;
 #[link_section = ".startup"]
 #[no_mangle]
 fn _start() -> ! {
+    unsafe { set_interrupt_handlers() };
+
     init_dbg().unwrap();
 
     unsafe {
         main();
     }
-    dos::exit(0);
+
+    _exit(0);
+}
+
+#[no_mangle]
+fn _exit(rt: u8) -> ! {
+    unsafe { remove_interrupt_handlers() };
+    dos::exit(rt);
 }
 
 unsafe extern "C" {
     unsafe fn main();
+}
+
+#[link(name = "dbrt", kind = "static")]
+unsafe extern "C" {
+    unsafe fn set_interrupt_handlers();
+    unsafe fn remove_interrupt_handlers();
 }
 
 #[macro_export]

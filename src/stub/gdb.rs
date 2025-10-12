@@ -6,16 +6,24 @@ use gdbstub::target::Target;
 use gdbstub::target::TargetResult;
 
 use crate::bios;
+use crate::stub::TargetRegisters;
 
+#[repr(C)]
 pub struct DosTarget {
+    registers: TargetRegisters,
+
     break_stack_head: u8,
 }
 
 impl DosTarget {
     pub fn new() -> DosTarget {
         DosTarget {
+            registers: Default::default(),
             break_stack_head: 0,
         }
+    }
+    pub fn registers(&mut self) -> &mut TargetRegisters {
+        &mut self.registers
     }
 
     pub fn add_breakpoint(&mut self, addr: u32) -> TargetResult<bool, Self> {
@@ -113,9 +121,26 @@ impl SingleThreadBase for DosTarget {
     #[inline(never)]
     fn read_registers(
         &mut self,
-        _regs: &mut gdbstub_arch::x86::reg::X86CoreRegs,
+        regs: &mut gdbstub_arch::x86::reg::X86CoreRegs,
     ) -> TargetResult<(), Self> {
         println!("> read_registers");
+        let registers = self.registers();
+        // TODO: is it UB when DosTarget itself is static mut?
+        regs.eax = registers.eax;
+        regs.ebx = registers.ebx;
+        regs.ecx = registers.ecx;
+        regs.edx = registers.edx;
+        regs.esi = registers.esi;
+        regs.edi = registers.edi;
+        regs.esp = registers.esp;
+        regs.ebp = registers.ebp;
+        regs.eip = registers.eip;
+        regs.segments.cs = registers.cs as u32;
+        regs.segments.ds = registers.ds as u32;
+        regs.segments.es = registers.es as u32;
+        regs.segments.ss = registers.ss as u32;
+        regs.segments.fs = registers.fs as u32;
+        regs.segments.gs = registers.gs as u32;
 
         Ok(())
     }
