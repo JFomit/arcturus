@@ -26,7 +26,7 @@ pub unsafe extern "C" fn step_over_handler() {}
 
 fn send_stop() {
     unsafe {
-        GDB_STATE_MACHINE = match GDB_STATE_MACHINE.take().unwrap() {
+        GDB_STATE_MACHINE.replace(match GDB_STATE_MACHINE.take().unwrap() {
             GdbStubStateMachine::Running(gdb) => {
                 match gdb.report_stop(&mut DOS_TARGET, SingleThreadStopReason::SwBreak(())) {
                     Ok(gdb) => Some(gdb),
@@ -37,14 +37,14 @@ fn send_stop() {
             }
 
             gdb => Some(gdb),
-        }
+        });
     }
 }
 
 fn gdb_handler_loop() -> Result<bool, &'static str> {
     let res = loop {
         unsafe {
-            GDB_STATE_MACHINE = match GDB_STATE_MACHINE.take().unwrap() {
+            GDB_STATE_MACHINE.replace(match GDB_STATE_MACHINE.take().unwrap() {
                 GdbStubStateMachine::Idle(mut gdb) => {
                     let mut byte = gdb.borrow_conn().read();
                     loop {
@@ -70,7 +70,7 @@ fn gdb_handler_loop() -> Result<bool, &'static str> {
                     //     Err(e) => break Err(e),
                     // }
                     println!("> Running");
-                    GDB_STATE_MACHINE = Some(gdb.into());
+                    GDB_STATE_MACHINE.replace(Some(gdb.into()));
                     return Ok(true);
                 }
                 GdbStubStateMachine::CtrlCInterrupt(gdb) => {
@@ -82,7 +82,7 @@ fn gdb_handler_loop() -> Result<bool, &'static str> {
                     }
                 }
                 GdbStubStateMachine::Disconnected(gdb) => break Ok(gdb.get_reason()),
-            }
+            });
         }
     };
 

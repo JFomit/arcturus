@@ -12,6 +12,7 @@ pub mod dos;
 pub mod bios;
 pub mod dpkey;
 mod init;
+mod local_cell;
 mod stub;
 
 extern crate rlibc;
