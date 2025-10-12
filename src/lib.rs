@@ -5,7 +5,9 @@
 
 use core::arch::asm;
 
-use crate::init::init_dbg;
+use gdbstub::stub::{state_machine::GdbStubStateMachine, SingleThreadStopReason};
+
+use crate::init::{init_dbg, DOS_TARGET, GDB_STATE_MACHINE};
 
 #[macro_use]
 pub mod dos;
@@ -25,11 +27,22 @@ fn _start() -> ! {
     unsafe { asm!("int3") };
 
     unsafe {
-        main();
-    }
-    
+        let rt = main();
 
-    _exit(0);
+        match GDB_STATE_MACHINE.take().unwrap() {
+            GdbStubStateMachine::Running(gdb) => {
+                match gdb.report_stop(&mut DOS_TARGET, SingleThreadStopReason::Exited(rt)) {
+                    Ok(_) => (),
+                    Err(e) => {
+                        panic!("{:?}", e);
+                    }
+                }
+            },
+            _ => panic!("Stub left in an invalid state.")
+        }
+
+        _exit(rt);
+    }
 }
 
 #[no_mangle]
@@ -39,7 +52,7 @@ fn _exit(rt: u8) -> ! {
 }
 
 unsafe extern "C" {
-    unsafe fn main();
+    unsafe fn main() -> u8;
 }
 
 #[link(name = "dbrt", kind = "static")]

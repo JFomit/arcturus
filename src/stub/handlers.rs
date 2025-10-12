@@ -101,7 +101,7 @@ fn gdb_handler_loop() -> Result<bool, &'static str> {
             if e.is_target_error() {
                 Err("Target raised a fatal error")
             } else {
-                Err("Internal error")
+                panic!("{:?}", e)
             }
         }
     }

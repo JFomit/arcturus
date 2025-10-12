@@ -46,6 +46,7 @@ impl DosTarget {
             }
         }
     }
+    
     pub fn remove_breakpoint(&mut self, addr: u32) -> TargetResult<bool, Self> {
         unsafe {
             let buf = &raw mut BREAKS;
@@ -212,6 +213,17 @@ impl target::ext::breakpoints::SwBreakpoint for DosTarget {
 impl target::ext::base::singlethread::SingleThreadResume for DosTarget {
     fn resume(&mut self, _signal: Option<gdbstub::common::Signal>) -> Result<(), Self::Error> {
         println!("> resume");
+        Ok(())
+    }
+
+    fn support_single_step(&mut self) -> Option<target::ext::base::singlethread::SingleThreadSingleStepOps<'_, Self>> {
+        Some(self)
+    }
+}
+
+impl target::ext::base::singlethread::SingleThreadSingleStep for DosTarget {
+    fn step(&mut self, _signal: Option<gdbstub::common::Signal>) -> Result<(), Self::Error> {
+        println!("> step");
         Ok(())
     }
 }
