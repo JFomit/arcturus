@@ -152,9 +152,25 @@ impl SingleThreadBase for DosTarget {
     #[inline(never)]
     fn write_registers(
         &mut self,
-        _regs: &gdbstub_arch::x86::reg::X86CoreRegs,
+        regs: &gdbstub_arch::x86::reg::X86CoreRegs,
     ) -> TargetResult<(), Self> {
         println!("> write_registers");
+        let registers = self.registers();
+        registers.eax = regs.eax;
+        registers.ebx = regs.ebx;
+        registers.ecx = regs.ecx;
+        registers.edx = regs.edx;
+        registers.esi = regs.esi;
+        registers.edi = regs.edi;
+        registers.esp = regs.esp;
+        registers.ebp = regs.ebp;
+        registers.eip = regs.eip;
+        registers.cs = regs.segments.cs as u16;
+        registers.ds = regs.segments.ds as u16;
+        registers.es = regs.segments.es as u16;
+        registers.ss = regs.segments.ss as u16;
+        registers.fs = regs.segments.fs as u16;
+        registers.gs = regs.segments.gs as u16;
         Ok(())
     }
 
