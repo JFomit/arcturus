@@ -1,8 +1,9 @@
-use super::exit;
 use core::panic::PanicInfo;
+
+use crate::_exit;
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     println!("{}", _info);
-    exit(1);
+    _exit(1);
 }

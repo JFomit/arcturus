@@ -8,6 +8,7 @@ use gdbstub::stub::{
 use crate::bios::com::ComStatusFlags;
 use crate::stub::{conn::ComConnection, gdb::DosTarget};
 
+#[no_mangle]
 static mut DOS_TARGET: DosTarget = unsafe { core::mem::zeroed() };
 static mut GDB_STATE_MACHINE: Option<GdbStubStateMachine<'static, DosTarget, ComConnection>> = None;
 static mut BUF: [u8; 1024] = [0; 1024];

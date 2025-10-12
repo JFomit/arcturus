@@ -3,8 +3,8 @@ bits	16
 global	old_int3
 global	old_int1
 
-global	int3_handler
-global	int1_handler
+global	set_interrupt_handlers
+global	remove_interrupt_handlers
 ; DosTarget
 extern	DOS_TARGET
 ; __cdecl fn break_handler() -> ()
@@ -16,6 +16,39 @@ extern	step_over_handler
 
 section	.text
 
+set_interrupt_handlers:
+	push	bx
+	push	es
+	; saving old int3 handler
+	mov		ah,				35h ; Get interrupt handler
+	mov 	al,				0x3
+	int 	21h
+	mov 	[old_int3],		bx
+	mov 	[old_int3+2],	es
+	; setting new int3 handler
+	; ds is already set
+	mov		dx,				int3_handler
+	mov 	ah,				25h ; Set interrupt handler
+	mov 	al,				0x3
+	int 	21h
+	pop		es
+	pop		bx
+	ret
+
+remove_interrupt_handlers:
+	push	ds
+
+	; restoring old int3 handler
+	mov 	[old_int3],		dx
+	mov 	[old_int3+2],	ds
+
+	mov 	ah,				25h ; Set interrupt handler
+	mov 	al,				0x3
+	int 	21h
+	
+	pop		ds
+	ret
+
 int3_handler:
 	; flags - 36
 	; CS:IP - 32
@@ -23,8 +56,8 @@ int3_handler:
 	; EAX, ECX, EDX, EBX, ESP (original value), EBP, ESI, and EDI
 	pushad
 
-	pushf
-	call		 dword [cs:old_int3]
+	; pushf
+	; call		 dword [cs:old_int3]
 
 	; saving registers to DOS_TARGET
 	mov			eax,				[esp+28]
@@ -63,7 +96,7 @@ int3_handler:
 	mov			ax,					gs
 	mov			[DOS_TARGET+50],	ax			; gs
 
-	call		break_handler
+	call  		dword break_handler
 
 	popad
 	iret
