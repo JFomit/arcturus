@@ -118,6 +118,10 @@ impl Target for DosTarget {
 // be inlined for smaller codegen
 
 impl SingleThreadBase for DosTarget {
+    fn support_resume(&mut self) -> Option<target::ext::base::singlethread::SingleThreadResumeOps<'_, Self>> {
+        Some(self)
+    }
+
     #[inline(never)]
     fn read_registers(
         &mut self,
@@ -202,5 +206,12 @@ impl target::ext::breakpoints::SwBreakpoint for DosTarget {
     #[inline(never)]
     fn remove_sw_breakpoint(&mut self, addr: u32, _kind: usize) -> TargetResult<bool, Self> {
         self.remove_breakpoint(addr)
+    }
+}
+
+impl target::ext::base::singlethread::SingleThreadResume for DosTarget {
+    fn resume(&mut self, _signal: Option<gdbstub::common::Signal>) -> Result<(), Self::Error> {
+        println!("> resume");
+        Ok(())
     }
 }

@@ -3,6 +3,8 @@
 #![feature(asm_goto_with_outputs)]
 #![no_main]
 
+use core::arch::asm;
+
 use crate::init::init_dbg;
 
 #[macro_use]
@@ -19,12 +21,13 @@ extern crate rlibc;
 #[no_mangle]
 fn _start() -> ! {
     unsafe { set_interrupt_handlers() };
-
     init_dbg().unwrap();
+    unsafe { asm!("int3") };
 
     unsafe {
         main();
     }
+    
 
     _exit(0);
 }
