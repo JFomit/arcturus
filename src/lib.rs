@@ -2,7 +2,6 @@
 #![feature(alloc_error_handler)]
 #![feature(asm_goto_with_outputs)]
 #![no_main]
-#![feature(naked_functions_rustic_abi)]
 
 use crate::init::init_dbg;
 

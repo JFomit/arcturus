@@ -6,8 +6,8 @@ target = "i386-dos.json"
 rustflags = [
     "-C",
     "link-arg=-Tlink.x",
-    "-C",
-    "linker-plugin-lto",
+    # "-C",
+    # "linker-plugin-lto",
     "-Zlocation-detail=none", 
     "-Zfmt-debug=none"
 ]

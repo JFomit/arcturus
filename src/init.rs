@@ -49,7 +49,7 @@ pub fn init_dbg() -> Result<(), i32> {
                 }
             }
             GdbStubStateMachine::Running(gdb) => {
-                match gdb.report_stop(&mut target, MultiThreadStopReason::DoneStep) {
+                match gdb.report_stop(&mut target, SingleThreadStopReason::DoneStep) {
                     Ok(gdb) => Some(gdb),
                     Err(e) => break Err(e),
                 }

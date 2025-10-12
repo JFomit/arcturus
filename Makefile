@@ -1,3 +1,4 @@
+LINKER:=~/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/bin/rust-lld
 
 .PHONEY: clean all rust asm builddir
 all: rust asm
@@ -6,8 +7,8 @@ all: rust asm
 
 	objdump -C -S -d -M intel -m i8086 -j .text gdbstub.elf > gdbstub.lst
 
-	objdump -s -j .rodata debugee.elf >> gdbstub.lst
-	objdump -s -j .data debugee.elf >> gdbstub.lst
+	objdump -s -j .rodata gdbstub.elf >> gdbstub.lst
+	objdump -s -j .data gdbstub.elf >> gdbstub.lst
 
 rust:
 	cargo build --release
