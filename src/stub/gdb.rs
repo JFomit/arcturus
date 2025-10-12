@@ -6,14 +6,19 @@ use gdbstub::target::Target;
 use gdbstub::target::TargetResult;
 
 use crate::bios;
+use crate::stub::TargetRegisters;
 
+#[repr(C)]
 pub struct DosTarget {
+    registers: TargetRegisters,
+
     break_stack_head: u8,
 }
 
 impl DosTarget {
     pub fn new() -> DosTarget {
         DosTarget {
+            registers: Default::default(),
             break_stack_head: 0,
         }
     }
