@@ -1,11 +1,7 @@
-use core::cell::UnsafeCell;
-
 use gdbstub::stub::{state_machine::GdbStubStateMachine, DisconnectReason, SingleThreadStopReason};
 
 use crate::{
-    _exit,
-    bios::com::ComStatusFlags,
-    init::{DOS_TARGET, GDB_STATE_MACHINE},
+    _exit, bios::com::ComStatusFlags, init::{DOS_TARGET, GDB_STATE_MACHINE}
 };
 
 #[no_mangle]
@@ -16,7 +12,7 @@ pub unsafe extern "C" fn break_handler() {
 
     match r {
         Ok(true) => return,
-        Ok(false) => _exit(0),
+        Ok(false) => _exit(1),
         Err(str) => panic!("{:?}", str),
     }
 }
@@ -69,7 +65,7 @@ fn gdb_handler_loop() -> Result<bool, &'static str> {
                     //     Ok(gdb) => Some(gdb),
                     //     Err(e) => break Err(e),
                     // }
-                    println!("> Running");
+                    println!("> running");
                     GDB_STATE_MACHINE.replace(Some(gdb.into()));
                     return Ok(true);
                 }

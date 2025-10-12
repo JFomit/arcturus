@@ -27,33 +27,40 @@ fn _start() -> ! {
     unsafe { asm!("int3") };
 
     unsafe {
-        let rt = main();
+        let mut rt: u16;
+        asm!(
+            "call   main",
+            out("ax") rt
+        );
 
-        match GDB_STATE_MACHINE.take().unwrap() {
-            GdbStubStateMachine::Running(gdb) => {
-                match gdb.report_stop(&mut DOS_TARGET, SingleThreadStopReason::Exited(rt)) {
-                    Ok(_) => (),
-                    Err(e) => {
-                        panic!("{:?}", e);
-                    }
-                }
-            },
-            _ => panic!("Stub left in an invalid state.")
-        }
+        println!("Stopping gdb session...");
+        asm!("int3");
 
-        _exit(rt);
+        _exit(rt as u8);
     }
 }
 
 #[no_mangle]
 fn _exit(rt: u8) -> ! {
+    let machine = GDB_STATE_MACHINE.take().unwrap();
+    match machine {
+        GdbStubStateMachine::Running(gdb) => {
+            let _ = gdb.report_stop(
+                unsafe { &mut DOS_TARGET },
+                SingleThreadStopReason::Exited(rt),
+            );
+        }
+        
+        _ => println!("Stub left in an invalid state."),
+    }
+    
     unsafe { remove_interrupt_handlers() };
     dos::exit(rt);
 }
 
-unsafe extern "C" {
-    unsafe fn main() -> u8;
-}
+// unsafe extern "C" {
+//     unsafe fn main() -> u8;
+// }
 
 #[link(name = "dbrt", kind = "static")]
 unsafe extern "C" {
