@@ -7,9 +7,10 @@ use crate::init::init_dbg;
 
 #[macro_use]
 pub mod dos;
-pub mod dpkey;
 pub mod bios;
+pub mod dpkey;
 mod init;
+mod local_cell;
 mod stub;
 
 extern crate rlibc;
