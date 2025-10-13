@@ -30,6 +30,19 @@ extern	step_over_handler
 	int 	21h
 %endmacro
 
+; This macro resets given interrupt handler to point to given location.
+; Order of arguments: (intNo, handler: (IP:CS))
+; Clobbers: ax, dx
+%macro restore_int_handler 2
+	; restoring old handler
+	mov 	dx,				[%2]
+	mov 	ds, 			[%2+2]
+
+	mov 	ah,				25h ; Set interrupt handler
+	mov 	al,				%1	; Interrupt No.
+	int 	21h
+%endmacro
+
 section	.text
 
 set_interrupt_handlers:
@@ -46,27 +59,14 @@ set_interrupt_handlers:
 remove_interrupt_handlers:
 	push	ds
 
-	; restoring old int3 handler
-	mov 	[old_int3],		dx
-	mov 	[old_int3+2],	ds
-
-	mov 	ah,				25h ; Set interrupt handler
-	mov 	al,				0x3
-	int 	21h
+	; restoring old handlers
+	restore_int_handler	3,	old_int3
+	restore_int_handler	1,	old_int1
 	
 	pop		ds
 	ret
 
-int3_handler:
-	; flags - 36
-	; CS:IP - 32
-	; 28   24   20   16   12                    8    4        0
-	; EAX, ECX, EDX, EBX, ESP (original value), EBP, ESI, and EDI
-	pushad
-
-	; pushf
-	; call		 dword [cs:old_int3]
-
+%macro	int_enter_save_regs 0
 	; saving registers to DOS_TARGET
 	mov			eax,				[esp+28]
 	mov			[DOS_TARGET+0],		eax			; eax
@@ -103,10 +103,9 @@ int3_handler:
 	mov			[DOS_TARGET+48],	ax			; fs
 	mov			ax,					gs
 	mov			[DOS_TARGET+50],	ax			; gs
+%endmacro
 
-	call  		dword break_handler
-
-
+%macro	int_leave_restore_regs 0
 	mov			eax,				[DOS_TARGET+28]
 	mov			[esp+0],			eax			; eax
 	mov			eax,				[DOS_TARGET+24]
@@ -142,13 +141,41 @@ int3_handler:
 	mov			fs,					ax
 	mov			ax,					[DOS_TARGET+50] ; gs
 	mov			gs,					ax
+%endmacro
 
-	lea			ebp,				[esp+36]		; flags
-	or			word [bp],			100h
+
+int3_handler:
+	; flags - 36
+	; CS:IP - 32
+	; 28   24   20   16   12                    8    4        0
+	; EAX, ECX, EDX, EBX, ESP (original value), EBP, ESI, and EDI
+	pushad
+
+	; pushf
+	; call		 dword [cs:old_int3]
+
+	int_enter_save_regs
+	call  		dword break_handler
+	int_leave_restore_regs
 
 	popad
 	iret
+
 int1_handler:
+	; flags - 36
+	; CS:IP - 32
+	; 28   24   20   16   12                    8    4        0
+	; EAX, ECX, EDX, EBX, ESP (original value), EBP, ESI, and EDI
+	pushad
+
+	; pushf
+	; call		 dword [cs:old_int3]
+
+	int_enter_save_regs
+	call  		dword step_over_handler
+	int_leave_restore_regs
+
+	popad
 	iret
 
 section .data
