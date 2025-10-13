@@ -12,7 +12,7 @@ pub unsafe extern "C" fn break_handler() {
 
     match r {
         Ok(true) => return,
-        Ok(false) => _exit(1),
+        Ok(false) => panic!("Exited."),
         Err(str) => panic!("{:?}", str),
     }
 }
@@ -37,6 +37,7 @@ fn send_stop() {
     }
 }
 
+#[inline(never)]
 fn gdb_handler_loop() -> Result<bool, &'static str> {
     let res = loop {
         unsafe {

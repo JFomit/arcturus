@@ -19,6 +19,17 @@ mod stub;
 
 extern crate rlibc;
 
+#[inline(never)]
+unsafe extern "C" fn call_main() -> u16 {
+    let mut rt: u16;
+    asm!(
+        "call   main",
+        out("ax") rt,
+        clobber_abi("C")
+    );
+    rt
+}
+
 #[link_section = ".startup"]
 #[no_mangle]
 fn _start() -> ! {
@@ -27,11 +38,7 @@ fn _start() -> ! {
     unsafe { asm!("int3") };
 
     unsafe {
-        let mut rt: u16;
-        asm!(
-            "call   main",
-            out("ax") rt
-        );
+        let rt = call_main();
 
         println!("Stopping gdb session...");
         asm!("int3");
@@ -50,10 +57,10 @@ fn _exit(rt: u8) -> ! {
                 SingleThreadStopReason::Exited(rt),
             );
         }
-        
+
         _ => println!("Stub left in an invalid state."),
     }
-    
+
     unsafe { remove_interrupt_handlers() };
     dos::exit(rt);
 }

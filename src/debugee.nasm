@@ -1,16 +1,22 @@
 bits    16
 
+extern  printDword
+
 global main
 main:
     push    bp
     mov     bp,     sp
 
+    ; mov     edx,    [esp]
+    ; call    printDword
     call    example
+    ; mov     edx,    [esp]
+    ; call    printDword
 
     mov     sp,     bp
     pop     bp
     xor     ax,     ax
-    ret
+    o32 ret
 
 global  example
 example:

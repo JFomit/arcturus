@@ -56,6 +56,10 @@ int3_handler:
 	; EAX, ECX, EDX, EBX, ESP (original value), EBP, ESI, and EDI
 	pushad
 
+	; mov			ah,					02h
+	; mov			dx,					'I'
+	; int			21h
+
 	; pushf
 	; call		 dword [cs:old_int3]
 
@@ -96,7 +100,13 @@ int3_handler:
 	mov			ax,					gs
 	mov			[DOS_TARGET+50],	ax			; gs
 
+	; mov			edx,				esp
+	; call		printDword
+
 	call  		dword break_handler
+
+	; mov			edx,				esp
+	; call		printDword
 
 	popad
 	iret
@@ -107,3 +117,38 @@ section .data
 
 old_int3	dd	0
 old_int1	dd	0
+hexChars	db	"0123456789abcdef",0
+
+section	.text
+
+global	printDword
+; ARGS: edx -- number to be printed
+; CLOBBERS: eflags
+printDword:
+	push	eax
+	push	ebx
+	push	ecx
+	push	esi
+
+	mov		cx, 	8 ; tetrade count
+	mov		ax, 	0x0200
+	xor		bx, 	bx
+
+.loop rol 	edx, 	4 ; rotate 1 tetrade
+	mov		bl, 	dl ; copy 4 LSBs to bl
+	and		bx, 	0x000f
+	mov		si, 	hexChars
+	add		si, 	bx
+	mov		dl, 	[si]
+
+	int 	0x21
+
+	dec 	cx
+	jnz 	.loop 
+
+	pop 	esi
+	pop 	ecx
+	pop 	ebx
+	pop 	eax
+
+	ret

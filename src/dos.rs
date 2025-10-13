@@ -9,6 +9,7 @@ pub mod panic;
 pub mod math;
 use core::arch::asm;
 
+#[inline(never)]
 pub fn exit(rt: u8) -> ! {
     unsafe {
         asm!("mov ah, 0x4C",
