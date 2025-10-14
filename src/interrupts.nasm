@@ -168,6 +168,11 @@ int1_handler:
 	; EAX, ECX, EDX, EBX, ESP (original value), EBP, ESI, and EDI
 	pushad
 
+	; Clear TF
+	mov			ax, 		[esp+36]
+	and			ax,			0xfeff
+	mov			[esp+36],	ax
+
 	; pushf
 	; call		 dword [cs:old_int3]
 
