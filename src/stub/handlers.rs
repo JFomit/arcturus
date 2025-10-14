@@ -6,7 +6,8 @@ use crate::{
 
 #[no_mangle]
 pub unsafe extern "C" fn break_handler() {
-    DOS_TARGET.registers().eip -= 1;
+    DOS_TARGET.get().as_mut().unwrap().registers().eip -= 1;
+    // DOS_TARGET.get().as_mut().unwrap().registers().esp -= 6;
     send_stop();
     let r = gdb_handler_loop();
 
@@ -24,7 +25,7 @@ fn send_stop() {
     unsafe {
         GDB_STATE_MACHINE.replace(match GDB_STATE_MACHINE.take().unwrap() {
             GdbStubStateMachine::Running(gdb) => {
-                match gdb.report_stop(&mut DOS_TARGET, SingleThreadStopReason::SwBreak(())) {
+                match gdb.report_stop(DOS_TARGET.get().as_mut().unwrap(), SingleThreadStopReason::SwBreak(())) {
                     Ok(gdb) => Some(gdb),
                     Err(e) => {
                         panic!("{:?}", e);
@@ -56,7 +57,7 @@ fn gdb_handler_loop() -> Result<bool, &'static str> {
                         break;
                     }
 
-                    match gdb.incoming_data(&mut DOS_TARGET, byte.unwrap()) {
+                    match gdb.incoming_data(DOS_TARGET.get().as_mut_unchecked(), byte.unwrap()) {
                         Ok(gdb) => Some(gdb),
                         Err(e) => break Err(e),
                     }
@@ -72,7 +73,7 @@ fn gdb_handler_loop() -> Result<bool, &'static str> {
                 }
                 GdbStubStateMachine::CtrlCInterrupt(gdb) => {
                     match gdb
-                        .interrupt_handled(&mut DOS_TARGET, None::<SingleThreadStopReason<u32>>)
+                        .interrupt_handled(DOS_TARGET.get().as_mut_unchecked(), None::<SingleThreadStopReason<u32>>)
                     {
                         Ok(gdb) => Some(gdb),
                         Err(e) => break Err(e),

@@ -12,8 +12,6 @@ extern	break_handler
 ; __cdecl fn step_over_handler() -> ()
 extern	step_over_handler
 
-
-
 section	.text
 
 set_interrupt_handlers:
@@ -31,6 +29,7 @@ set_interrupt_handlers:
 	mov 	ah,				25h ; Set interrupt handler
 	mov 	al,				0x3
 	int 	21h
+
 	pop		es
 	pop		bx
 	ret
@@ -62,7 +61,6 @@ int3_handler:
 
 	; pushf
 	; call		 dword [cs:old_int3]
-
 	; saving registers to DOS_TARGET
 	mov			eax,				[esp+28]
 	mov			[DOS_TARGET+0],		eax			; eax
@@ -81,12 +79,11 @@ int3_handler:
 	mov			eax,				[esp+0]
 	mov			[DOS_TARGET+28],	eax			; edi
 
-	xor			eax,				eax
-	mov			ax,					[esp+36]
-	mov			[DOS_TARGET+36],	eax			; flags
-	mov			ax,					[esp+34]
+	movzx		eax,				word [esp+36]
+	mov			[DOS_TARGET+36],	eax			; eflags
+	movzx		eax,				word [esp+34]
 	mov			[DOS_TARGET+40],	ax			; cs
-	mov			ax,					[esp+32]
+	movzx		eax,				word [esp+32]
 	mov			[DOS_TARGET+32],	eax			; eip
 
 	mov			ax,					ss
@@ -100,13 +97,7 @@ int3_handler:
 	mov			ax,					gs
 	mov			[DOS_TARGET+50],	ax			; gs
 
-	; mov			edx,				esp
-	; call		printDword
-
 	call  		dword break_handler
-
-	; mov			edx,				esp
-	; call		printDword
 
 	popad
 	iret
@@ -123,12 +114,21 @@ section	.text
 
 global	printDword
 ; ARGS: edx -- number to be printed
-; CLOBBERS: eflags
+; CLOBBERS: eflags,edx
 printDword:
 	push	eax
 	push	ebx
 	push	ecx
 	push	esi
+	push	edx
+
+	mov		ah,	2
+	mov		dl,	13
+	int		21h
+	mov		dl,	10
+	int		21h
+	
+	pop		edx
 
 	mov		cx, 	8 ; tetrade count
 	mov		ax, 	0x0200
@@ -145,6 +145,15 @@ printDword:
 
 	dec 	cx
 	jnz 	.loop 
+	push	edx
+
+	mov		ah,	2
+	mov		dl,	13
+	int		21h
+	mov		dl,	10
+	int		21h
+
+	pop		edx
 
 	pop 	esi
 	pop 	ecx

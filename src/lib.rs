@@ -1,6 +1,8 @@
 #![no_std]
 #![feature(alloc_error_handler)]
 #![feature(asm_goto_with_outputs)]
+#![feature(sync_unsafe_cell)]
+#![feature(ptr_as_ref_unchecked)]
 #![no_main]
 
 use core::arch::asm;
@@ -23,7 +25,11 @@ extern crate rlibc;
 unsafe extern "C" fn call_main() -> u16 {
     let mut rt: u16;
     asm!(
+        "push   ebp",
+        "mov    ebp,    esp",
+        "xor    eax,    eax",
         "call   main",
+        "pop    ebp",
         out("ax") rt,
         clobber_abi("C")
     );
@@ -48,12 +54,12 @@ fn _start() -> ! {
 }
 
 #[no_mangle]
-fn _exit(rt: u8) -> ! {
+extern "C" fn _exit(rt: u8) -> ! {
     let machine = GDB_STATE_MACHINE.take().unwrap();
     match machine {
         GdbStubStateMachine::Running(gdb) => {
             let _ = gdb.report_stop(
-                unsafe { &mut DOS_TARGET },
+                unsafe { DOS_TARGET.get().as_mut_unchecked() },
                 SingleThreadStopReason::Exited(rt),
             );
         }

@@ -15,6 +15,9 @@ pub struct DosTarget {
     break_stack_head: u8,
 }
 
+#[link_section = ".data"]
+static mut BREAKS: [Breakpoint; 128] = [Breakpoint { addr: 0xdeadbeef, opcode: 0 }; 128];
+
 impl DosTarget {
     pub fn new() -> DosTarget {
         DosTarget {
@@ -29,18 +32,18 @@ impl DosTarget {
     pub fn add_breakpoint(&mut self, addr: u32) -> TargetResult<bool, Self> {
         unsafe {
             let buf = &raw mut BREAKS;
-            let len = (*buf).len();
+            let len = buf.read().len();
             let opcode_ptr = addr as *mut u8;
-            println!("Break at {}, opcode is {}", addr, *opcode_ptr);
+            println!("Break at {:X}, was {:X}, set to CC", addr, opcode_ptr.read());
             if self.break_stack_head as usize > len {
                 Ok(false)
             } else {
                 (*buf)[self.break_stack_head as usize] = Breakpoint {
                     addr: addr,
-                    opcode: *opcode_ptr,
+                    opcode: opcode_ptr.read(),
                 };
                 self.break_stack_head += 1;
-                *opcode_ptr = 0xCC;
+                opcode_ptr.write(0xCC);
 
                 Ok(true)
             }
@@ -62,8 +65,9 @@ impl DosTarget {
                     swap(b, top);
                     self.break_stack_head -= 1;
                 }
-
-                *(addr as *mut u8) = to_fill;
+                let ptr = addr as *mut u8;
+                println!("Removed break at {:X}, was {:X}, set to {:X}", addr, ptr.read(), to_fill);
+                ptr.write(to_fill);
 
                 return Ok(true);
             }
@@ -78,8 +82,6 @@ struct Breakpoint {
     addr: u32,
     opcode: u8,
 }
-
-static mut BREAKS: [Breakpoint; 128] = [Breakpoint { addr: 0, opcode: 0 }; 128];
 
 impl Target for DosTarget {
     type Arch = gdbstub_arch::x86::X86_SSE;
@@ -170,6 +172,11 @@ impl SingleThreadBase for DosTarget {
 
             for item in data {
                 if address as u32 >= total_size {
+                    break;
+                }
+                if address as u32 > 0xffff {
+                    // TODO: switch to unreal mode to enable support for reading ta offsets greater
+                    // that one segment size
                     break;
                 }
 

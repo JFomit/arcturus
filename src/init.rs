@@ -1,3 +1,5 @@
+use core::cell::SyncUnsafeCell;
+
 use gdbstub::stub::{
     state_machine::GdbStubStateMachine, DisconnectReason, GdbStubBuilder, MultiThreadStopReason,
     SingleThreadStopReason,
@@ -8,14 +10,18 @@ use crate::local_cell::LocalCell;
 use crate::stub::{conn::ComConnection, gdb::DosTarget};
 
 #[no_mangle]
-pub static mut DOS_TARGET: DosTarget = unsafe { core::mem::zeroed() };
+#[link_section = ".data"]
+pub static DOS_TARGET: SyncUnsafeCell<DosTarget> = unsafe { core::mem::zeroed() };
+#[link_section = ".data"]
+pub static mut BUF: [u8; 1024] = [0; 1024];
+#[link_section = ".data"]
 pub static GDB_STATE_MACHINE: LocalCell<
     Option<GdbStubStateMachine<'static, DosTarget, ComConnection>>,
 > = LocalCell::new(None);
-pub static mut BUF: [u8; 1024] = [0; 1024];
 
 pub fn init_dbg() -> Result<(), i32> {
-    unsafe { DOS_TARGET = DosTarget::new() };
+    unsafe { DOS_TARGET.get().write(DosTarget::new()); };
+    GDB_STATE_MACHINE.replace(None);
 
     let com = ComConnection::new(0);
 
@@ -26,8 +32,9 @@ pub fn init_dbg() -> Result<(), i32> {
 
     println!("Starting GDB session...");
 
-    let mut target = unsafe { &mut DOS_TARGET };
-    GDB_STATE_MACHINE.replace(Some(gdb.run_state_machine(target).map_err(|_| 2)?));
+    unsafe {
+        GDB_STATE_MACHINE.replace(Some(gdb.run_state_machine(DOS_TARGET.get().as_mut_unchecked()).map_err(|_| 2)?));
+    }
 
     Ok(())
 }
