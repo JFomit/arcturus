@@ -35,7 +35,7 @@ impl DosTarget {
             let buf = &raw mut BREAKS;
             let len = buf.read().len();
             let opcode_ptr = addr as *mut u8;
-            println!("Break at {:X}, was {:X}, set to CC", addr, opcode_ptr.read());
+            // println!("Break at {:X}, was {:X}, set to CC", addr, opcode_ptr.read());
             if self.break_stack_head as usize > len {
                 Ok(false)
             } else {
@@ -67,7 +67,7 @@ impl DosTarget {
                     self.break_stack_head -= 1;
                 }
                 let ptr = addr as *mut u8;
-                println!("Removed break at {:X}, was {:X}, set to {:X}", addr, ptr.read(), to_fill);
+                // println!("Removed break at {:X}, was {:X}, set to {:X}", addr, ptr.read(), to_fill);
                 ptr.write(to_fill);
 
                 return Ok(true);
@@ -133,7 +133,7 @@ impl SingleThreadBase for DosTarget {
         &mut self,
         regs: &mut gdbstub_arch::x86::reg::X86CoreRegs,
     ) -> TargetResult<(), Self> {
-        println!("> read_registers");
+        // println!("> read_registers");
         let registers = self.registers();
         // TODO: is it UB when DosTarget itself is static mut?
         regs.eax = registers.eax;
@@ -161,7 +161,7 @@ impl SingleThreadBase for DosTarget {
         &mut self,
         regs: &gdbstub_arch::x86::reg::X86CoreRegs,
     ) -> TargetResult<(), Self> {
-        println!("> write_registers");
+        // println!("> write_registers");
         let registers = self.registers();
         registers.eax = regs.eax;
         registers.ebx = regs.ebx;
@@ -205,13 +205,13 @@ impl SingleThreadBase for DosTarget {
                 count += 1;
             }
         }
-        println!("> read_addrs");
+        // println!("> read_addrs");
         Ok(count)
     }
 
     #[inline(never)]
     fn write_addrs(&mut self, _start_addr: u32, _data: &[u8]) -> TargetResult<(), Self> {
-        println!("> write_addrs");
+        // println!("> write_addrs");
         Ok(())
     }
 }
@@ -239,7 +239,7 @@ impl target::ext::breakpoints::SwBreakpoint for DosTarget {
 
 impl target::ext::base::singlethread::SingleThreadResume for DosTarget {
     fn resume(&mut self, _signal: Option<gdbstub::common::Signal>) -> Result<(), Self::Error> {
-        println!("> resume");
+        // println!("> resume");
         Ok(())
     }
     fn support_single_step(
@@ -252,7 +252,7 @@ impl target::ext::base::singlethread::SingleThreadResume for DosTarget {
 impl target::ext::base::singlethread::SingleThreadSingleStep for DosTarget {
     fn step(&mut self, _signal: Option<gdbstub::common::Signal>) -> Result<(), Self::Error> {
         // Set EFLAGS
-        println!("> step");
+        // println!("> step");
         self.registers().eflags |= Eflags::TRAP.bits();
         Ok(())
     }
