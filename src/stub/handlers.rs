@@ -1,10 +1,9 @@
-use core::cell::UnsafeCell;
 use gdbstub::stub::{state_machine::GdbStubStateMachine, DisconnectReason, SingleThreadStopReason};
 
 use crate::{
     _exit,
     bios::com::ComStatusFlags,
-    init::{DOS_TARGET, GDB_STATE_MACHINE}, stub::Eflags,
+    init::{DOS_TARGET, GDB_STATE_MACHINE},
 };
 
 #[no_mangle]
@@ -17,7 +16,7 @@ pub unsafe extern "C" fn break_handler() {
     match r {
         Ok(true) => return,
         Ok(false) => _exit(0),
-        Err(str) => panic!("{:?}", str),
+        Err(str) => panic!("{}", str),
     }
 }
 
@@ -28,7 +27,7 @@ pub unsafe extern "C" fn step_over_handler() {
     match gdb_handler_loop() {
         Ok(true) => (),
         Ok(false) => _exit(0),
-        Err(str) => panic!("{:?}", str),
+        Err(str) => panic!("{}", str),
     }
 }
 
@@ -41,7 +40,7 @@ fn send_stop(reason: SingleThreadStopReason<u32>) {
                     match gdb.report_stop(DOS_TARGET.get().as_mut().unwrap(), reason) {
                         Ok(gdb) => Some(gdb),
                         Err(e) => {
-                            panic!("{:?}", e);
+                            panic!("{}", e);
                         }
                     }
                 }
@@ -78,7 +77,6 @@ pub fn gdb_handler_loop() -> Result<bool, &'static str> {
                     //     Ok(gdb) => Some(gdb),
                     //     Err(e) => break Err(e),
                     // }
-                    println!("> running");
                     GDB_STATE_MACHINE.get().write(Some(gdb.into()));
                     return Ok(true);
                 }
@@ -99,19 +97,19 @@ pub fn gdb_handler_loop() -> Result<bool, &'static str> {
     match res {
         Ok(disconnect_reason) => {
             match disconnect_reason {
-                DisconnectReason::Disconnect => println!("GDB Disconnected"),
-                DisconnectReason::TargetExited(_) => println!("Target exited"),
-                DisconnectReason::TargetTerminated(_) => println!("Target halted"),
-                DisconnectReason::Kill => println!("GDB sent a kill command"),
+                DisconnectReason::Disconnect => println!("> GDB disconnected"),
+                DisconnectReason::TargetExited(_) => println!("> target exited"),
+                DisconnectReason::TargetTerminated(_) => println!("> target halted"),
+                DisconnectReason::Kill => println!("> killed"),
             }
 
             Ok(false)
         }
         Err(e) => {
             if e.is_target_error() {
-                Err("Target raised a fatal error")
+                Err("target raised a fatal error")
             } else {
-                Err("Internal error")
+                Err("internal error")
             }
         }
     }

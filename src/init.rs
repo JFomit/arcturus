@@ -1,12 +1,9 @@
 use core::cell::SyncUnsafeCell;
 
 use gdbstub::stub::{
-    state_machine::GdbStubStateMachine, DisconnectReason, GdbStubBuilder, MultiThreadStopReason,
-    SingleThreadStopReason,
+    state_machine::GdbStubStateMachine, GdbStubBuilder,
 };
 
-use crate::bios::com::ComStatusFlags;
-use crate::local_cell::LocalCell;
 use crate::stub::{conn::ComConnection, gdb::DosTarget};
 
 #[no_mangle]
