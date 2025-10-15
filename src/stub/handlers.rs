@@ -1,45 +1,53 @@
+use core::cell::UnsafeCell;
 use gdbstub::stub::{state_machine::GdbStubStateMachine, DisconnectReason, SingleThreadStopReason};
 
 use crate::{
-    _exit, bios::com::ComStatusFlags, init::{DOS_TARGET, GDB_STATE_MACHINE}
+    _exit,
+    bios::com::ComStatusFlags,
+    init::{DOS_TARGET, GDB_STATE_MACHINE},
 };
 
 #[no_mangle]
 pub unsafe extern "C" fn break_handler() {
-    // DOS_TARGET.get().as_mut().unwrap().registers().eip -= 1;
-    // DOS_TARGET.get().as_mut().unwrap().registers().esp += 6;
-
-    send_stop();
+    // DOS_TARGET.registers().eip -= 1;
+    send_stop(SingleThreadStopReason::SwBreak(()));
     let r = gdb_handler_loop();
 
     match r {
         Ok(true) => return,
-        Ok(false) => panic!("Exited."),
+        Ok(false) => _exit(0),
         Err(str) => panic!("{:?}", str),
     }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn step_over_handler() {}
-
-fn send_stop() {
-    unsafe {
-        GDB_STATE_MACHINE.get().write(match GDB_STATE_MACHINE.get().read().unwrap() {
-            GdbStubStateMachine::Running(gdb) => {
-                match gdb.report_stop(DOS_TARGET.get().as_mut().unwrap(), SingleThreadStopReason::SwBreak(())) {
-                    Ok(gdb) => Some(gdb),
-                    Err(e) => {
-                        panic!("{:?}", e);
-                    }
-                }
-            }
-
-            gdb => Some(gdb),
-        });
+pub unsafe extern "C" fn step_over_handler() {
+    send_stop(SingleThreadStopReason::DoneStep);
+    match gdb_handler_loop() {
+        Ok(true) => (),
+        Ok(false) => _exit(0),
+        Err(str) => panic!("{:?}", str),
     }
 }
 
-#[inline(never)]
+fn send_stop(reason: SingleThreadStopReason<u32>) {
+    unsafe {
+        GDB_STATE_MACHINE
+            .get()
+            .write(match GDB_STATE_MACHINE.get().read().unwrap() {
+                GdbStubStateMachine::Running(gdb) => {
+                    match gdb.report_stop(DOS_TARGET.get().as_mut().unwrap(), reason) {
+                        Ok(gdb) => Some(gdb),
+                        Err(e) => {
+                            panic!("{:?}", e);
+                        }
+                    }
+                }
+                gdb => Some(gdb),
+            });
+    }
+}
+
 fn gdb_handler_loop() -> Result<bool, &'static str> {
     let res = loop {
         unsafe {
@@ -73,9 +81,10 @@ fn gdb_handler_loop() -> Result<bool, &'static str> {
                     return Ok(true);
                 }
                 GdbStubStateMachine::CtrlCInterrupt(gdb) => {
-                    match gdb
-                        .interrupt_handled(DOS_TARGET.get().as_mut_unchecked(), None::<SingleThreadStopReason<u32>>)
-                    {
+                    match gdb.interrupt_handled(
+                        DOS_TARGET.get().as_mut_unchecked(),
+                        None::<SingleThreadStopReason<u32>>,
+                    ) {
                         Ok(gdb) => Some(gdb),
                         Err(e) => break Err(e),
                     }
@@ -100,7 +109,7 @@ fn gdb_handler_loop() -> Result<bool, &'static str> {
             if e.is_target_error() {
                 Err("Target raised a fatal error")
             } else {
-                panic!("{:?}", e)
+                Err("Internal error")
             }
         }
     }

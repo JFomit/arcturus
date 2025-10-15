@@ -1,5 +1,5 @@
-pub(crate) mod gdb;
 pub(crate) mod conn;
+pub(crate) mod gdb;
 pub(crate) mod handlers;
 
 #[repr(C)]
@@ -39,14 +39,39 @@ pub struct TargetRegisters {
     /// General-purpose GS segment
     pub gs: u16, // 50
 
-    // TODO: fpu and sse registers
-    
-    // /// FPU registers: ST0 through ST7
-    // pub st: [F80; 8],
-    // /// FPU internal registers
-    // pub fpu: X87FpuInternalRegs,
-    // /// SIMD Registers: XMM0 through XMM7
-    // pub xmm: [u128; 8],
-    // /// SSE Status/Control Register
-    // pub mxcsr: u32,
+                 // TODO: fpu and sse registers
+
+                 // /// FPU registers: ST0 through ST7
+                 // pub st: [F80; 8],
+                 // /// FPU internal registers
+                 // pub fpu: X87FpuInternalRegs,
+                 // /// SIMD Registers: XMM0 through XMM7
+                 // pub xmm: [u128; 8],
+                 // /// SSE Status/Control Register
+                 // pub mxcsr: u32,
+}
+
+bitflags::bitflags! {
+    pub struct Eflags: u32 {
+        const CARRY = 0x01;
+        const PARITY = 0x04;
+        const AUX_CARRY = 0x10;
+        const ZERO = 0x40;
+        const SIGN = 0x80;
+        const TRAP = 0x100;
+        const INTERRUPT = 0x200;
+        const DIRECTION = 0x400;
+        const OVERFLOW = 0x800;
+        const IOPL = 0x3000;
+        const NESTED_TASK = 0x4000;
+        const MODE = 0x8000;
+        const RESUME = 0x10000;
+        const V86 = 0x20000;
+        const ALIGNMENT_CHECK = 0x40000;
+        const VIRTUAL_INTERRUPT = 0x80000;
+        const VIRTUAL_INTERRUPT_PENDING = 0x100000;
+        const CPUID = 0x200000;
+        // const AES = 0x400000;
+        // const AIS = 0x800000;
+    }
 }
