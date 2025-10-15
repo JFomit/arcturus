@@ -46,7 +46,7 @@ fn _start() -> ! {
     unsafe {
         let rt = call_main();
 
-        println!("Stopping gdb session...");
+        println!("> stopping gdb session...");
         asm!("int3");
 
         _exit(rt as u8);
@@ -55,7 +55,7 @@ fn _start() -> ! {
 
 #[no_mangle]
 extern "C" fn _exit(rt: u8) -> ! {
-    let machine = GDB_STATE_MACHINE.take().unwrap();
+    let machine = unsafe { GDB_STATE_MACHINE.get().read().unwrap() };
     match machine {
         GdbStubStateMachine::Running(gdb) => {
             let _ = gdb.report_stop(
@@ -64,7 +64,7 @@ extern "C" fn _exit(rt: u8) -> ! {
             );
         }
 
-        _ => println!("Stub left in an invalid state."),
+        _ => println!("> stub was left in an invalid state"),
     }
 
     unsafe { remove_interrupt_handlers() };

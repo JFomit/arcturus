@@ -6,8 +6,9 @@ use crate::{
 
 #[no_mangle]
 pub unsafe extern "C" fn break_handler() {
-    DOS_TARGET.get().as_mut().unwrap().registers().eip -= 1;
-    // DOS_TARGET.get().as_mut().unwrap().registers().esp -= 6;
+    // DOS_TARGET.get().as_mut().unwrap().registers().eip -= 1;
+    // DOS_TARGET.get().as_mut().unwrap().registers().esp += 6;
+
     send_stop();
     let r = gdb_handler_loop();
 
@@ -23,7 +24,7 @@ pub unsafe extern "C" fn step_over_handler() {}
 
 fn send_stop() {
     unsafe {
-        GDB_STATE_MACHINE.replace(match GDB_STATE_MACHINE.take().unwrap() {
+        GDB_STATE_MACHINE.get().write(match GDB_STATE_MACHINE.get().read().unwrap() {
             GdbStubStateMachine::Running(gdb) => {
                 match gdb.report_stop(DOS_TARGET.get().as_mut().unwrap(), SingleThreadStopReason::SwBreak(())) {
                     Ok(gdb) => Some(gdb),
@@ -42,7 +43,7 @@ fn send_stop() {
 fn gdb_handler_loop() -> Result<bool, &'static str> {
     let res = loop {
         unsafe {
-            GDB_STATE_MACHINE.replace(match GDB_STATE_MACHINE.take().unwrap() {
+            GDB_STATE_MACHINE.get().write(match GDB_STATE_MACHINE.get().read().unwrap() {
                 GdbStubStateMachine::Idle(mut gdb) => {
                     let mut byte = gdb.borrow_conn().read();
                     loop {
@@ -68,7 +69,7 @@ fn gdb_handler_loop() -> Result<bool, &'static str> {
                     //     Err(e) => break Err(e),
                     // }
                     println!("> running");
-                    GDB_STATE_MACHINE.replace(Some(gdb.into()));
+                    GDB_STATE_MACHINE.get().write(Some(gdb.into()));
                     return Ok(true);
                 }
                 GdbStubStateMachine::CtrlCInterrupt(gdb) => {

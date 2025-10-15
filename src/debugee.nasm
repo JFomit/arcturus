@@ -1,17 +1,16 @@
 bits    16
 
-extern  printDword
+CANARY  equ 0xFEEDDEAD
 
+extern	_exit
+
+section	.text
 global main
 main:
     push    bp
     mov     bp,     sp
 
-    ; mov     edx,    [esp]
-    ; call    printDword
     call    example
-    ; mov     edx,    [esp]
-    ; call    printDword
 
     mov     sp,     bp
     pop     bp
@@ -20,8 +19,26 @@ main:
 
 global  example
 example:
+    mov     eax,    CANARY
+    push    eax
+
     mov     ah,     02h
     mov     dl,     'J'
     int     21h
-    
-    ret
+
+    pop     eax
+	cmp		eax,	CANARY
+	je		.E
+
+	mov		ah,		09h
+	mov		dx,		abort_msg
+	int		21h
+
+	mov		eax,	8
+	call	dword _exit
+
+.E:	ret
+
+
+section	.data
+abort_msg	db	"Stack smash detected.", 13, 10, '$'

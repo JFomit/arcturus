@@ -8,6 +8,7 @@ pub struct MemorySizes {
 }
 
 // source: https://wiki.osdev.org/Detecting_Memory_(x86)#Detecting_Upper_Memory
+#[inline(never)]
 pub fn request_upper_memory_size() -> Result<MemorySizes, ()> {
     let mut lower: u16;
     let mut upper: u16;

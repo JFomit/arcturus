@@ -54,10 +54,7 @@ int3_handler:
 	; 28   24   20   16   12                    8    4        0
 	; EAX, ECX, EDX, EBX, ESP (original value), EBP, ESI, and EDI
 	pushad
-
-	; mov			ah,					02h
-	; mov			dx,					'I'
-	; int			21h
+	dec			word [esp+32]					; fixing eip to point before the int3
 
 	; pushf
 	; call		 dword [cs:old_int3]
