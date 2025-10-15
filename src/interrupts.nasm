@@ -150,6 +150,8 @@ int3_handler:
 	; EAX, ECX, EDX, EBX, ESP (original value), EBP, ESI, and EDI
 	pushad
 
+	dec		word [esp+32]
+
 	; pushf
 	; call		 dword [cs:old_int3]
 

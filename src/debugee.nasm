@@ -10,6 +10,8 @@ main:
     push    bp
     mov     bp,     sp
 
+    mov     eax,    0x1234abcd
+
     call    example
 
     mov     sp,     bp
