@@ -9,7 +9,10 @@ use core::arch::asm;
 
 use gdbstub::stub::{state_machine::GdbStubStateMachine, SingleThreadStopReason};
 
-use crate::init::{init_dbg, DOS_TARGET, GDB_STATE_MACHINE};
+use crate::{
+    init::{init_dbg, DOS_TARGET, GDB_STATE_MACHINE},
+    stub::handlers::gdb_handler_loop,
+};
 
 #[macro_use]
 pub mod dos;
@@ -21,35 +24,25 @@ mod stub;
 
 extern crate rlibc;
 
-#[inline(never)]
-unsafe extern "C" fn call_main() -> u16 {
-    let mut rt: u16;
-    asm!(
-        "push   ebp",
-        "mov    ebp,    esp",
-        "xor    eax,    eax",
-        "call   main",
-        "pop    ebp",
-        out("ax") rt,
-        clobber_abi("C")
-    );
-    rt
-}
-
 #[link_section = ".startup"]
 #[no_mangle]
 fn _start() -> ! {
     unsafe { set_interrupt_handlers() };
     init_dbg().unwrap();
-    unsafe { asm!("int3") };
+    // TODO: is this actually better than falling on int3?
+    match gdb_handler_loop() {
+        Ok(true) => {}
+        Ok(false) => _exit(0),
+        Err(e) => panic!("{}", e),
+    }
 
     unsafe {
-        let rt = call_main();
+        let rt = main();
 
         println!("> stopping gdb session...");
         asm!("int3");
 
-        _exit(rt as u8);
+        _exit(rt);
     }
 }
 
@@ -64,16 +57,16 @@ extern "C" fn _exit(rt: u8) -> ! {
             );
         }
 
-        _ => println!("> stub was left in an invalid state"),
+        _ => {}
     }
 
     unsafe { remove_interrupt_handlers() };
     dos::exit(rt);
 }
 
-// unsafe extern "C" {
-//     unsafe fn main() -> u8;
-// }
+unsafe extern "C" {
+    unsafe fn main() -> u8;
+}
 
 #[link(name = "dbrt", kind = "static")]
 unsafe extern "C" {

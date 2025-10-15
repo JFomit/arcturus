@@ -4,11 +4,12 @@ use gdbstub::stub::{state_machine::GdbStubStateMachine, DisconnectReason, Single
 use crate::{
     _exit,
     bios::com::ComStatusFlags,
-    init::{DOS_TARGET, GDB_STATE_MACHINE},
+    init::{DOS_TARGET, GDB_STATE_MACHINE}, stub::Eflags,
 };
 
 #[no_mangle]
 pub unsafe extern "C" fn break_handler() {
+    // made in assembly
     // DOS_TARGET.registers().eip -= 1;
     send_stop(SingleThreadStopReason::SwBreak(()));
     let r = gdb_handler_loop();
@@ -23,6 +24,7 @@ pub unsafe extern "C" fn break_handler() {
 #[no_mangle]
 pub unsafe extern "C" fn step_over_handler() {
     send_stop(SingleThreadStopReason::DoneStep);
+    
     match gdb_handler_loop() {
         Ok(true) => (),
         Ok(false) => _exit(0),
@@ -48,7 +50,7 @@ fn send_stop(reason: SingleThreadStopReason<u32>) {
     }
 }
 
-fn gdb_handler_loop() -> Result<bool, &'static str> {
+pub fn gdb_handler_loop() -> Result<bool, &'static str> {
     let res = loop {
         unsafe {
             GDB_STATE_MACHINE.get().write(match GDB_STATE_MACHINE.get().read().unwrap() {

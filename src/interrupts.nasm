@@ -105,6 +105,8 @@ int3_handler:
 
 	call  		dword break_handler
 
+	; lea			ebp,				[esp+36]		; flags
+	; or			word [bp],			100h
 
 	mov			eax,				[DOS_TARGET+28]
 	mov			[esp+0],			eax			; eax
@@ -142,12 +144,99 @@ int3_handler:
 	mov			ax,					[DOS_TARGET+50] ; gs
 	mov			gs,					ax
 
-	lea			ebp,				[esp+36]		; flags
-	or			word [bp],			100h
-
 	popad
 	iret
 int1_handler:
+	; flags - 36
+	; CS:IP - 32
+	; 28   24   20   16   12                    8    4        0
+	; EAX, ECX, EDX, EBX, ESP (original value), EBP, ESI, and EDI
+	pushad
+	; dec			word [esp+32]					; fixing eip to point before the int3
+
+	; pushf
+	; call		 dword [cs:old_int3]
+
+	lea			ebp,				[esp+36]
+	and			word [bp],			0xFEFF		; resetting trap, so we don't single step all the way to _exit()		
+
+	; saving registers to DOS_TARGET
+	mov			eax,				[esp+28]
+	mov			[DOS_TARGET+0],		eax			; eax
+	mov			eax,				[esp+24]
+	mov			[DOS_TARGET+4],		eax			; ecx
+	mov			eax,				[esp+20]
+	mov			[DOS_TARGET+8],		eax			; edx
+	mov			eax,				[esp+16]
+	mov			[DOS_TARGET+12],	eax			; ebx
+	mov			eax,				[esp+12]
+	mov			[DOS_TARGET+16],	eax			; esp
+	mov			eax,				[esp+8]
+	mov			[DOS_TARGET+20],	eax			; ebp
+	mov			eax,				[esp+4]
+	mov			[DOS_TARGET+24],	eax			; esi
+	mov			eax,				[esp+0]
+	mov			[DOS_TARGET+28],	eax			; edi
+
+	movzx		eax,				word [esp+36]
+	mov			[DOS_TARGET+36],	eax			; eflags
+	movzx		eax,				word [esp+34]
+	mov			[DOS_TARGET+40],	ax			; cs
+	movzx		eax,				word [esp+32]
+	mov			[DOS_TARGET+32],	eax			; eip
+
+	mov			ax,					ss
+	mov			[DOS_TARGET+42],	ax			; ss
+	mov			ax,					ds
+	mov			[DOS_TARGET+44],	ax			; ds
+	mov			ax,					es
+	mov			[DOS_TARGET+46],	ax			; es
+	mov			ax,					fs
+	mov			[DOS_TARGET+48],	ax			; fs
+	mov			ax,					gs
+	mov			[DOS_TARGET+50],	ax			; gs
+
+	call  		dword step_over_handler
+
+	
+
+	mov			eax,				[DOS_TARGET+28]
+	mov			[esp+0],			eax			; eax
+	mov			eax,				[DOS_TARGET+24]
+	mov			[esp+4],			eax			; ecx
+	mov			eax,				[DOS_TARGET+20]
+	mov			[esp+8],			eax			; edx
+	mov			eax,				[DOS_TARGET+16]
+	mov			[esp+12],			eax			; ebx
+	mov			eax,				[DOS_TARGET+12]
+	mov			[esp+16],			eax			; esp
+	mov			eax,				[DOS_TARGET+8]
+	mov			[esp+20],			eax			; ebp
+	mov			eax,				[DOS_TARGET+4]
+	mov			[esp+24],			eax			; esi
+	mov			eax,				[DOS_TARGET+0]
+	mov			[esp+28],			eax			; edi
+
+	xor			eax,				eax
+	mov			ax,					[DOS_TARGET+36]
+	mov			[esp+36],			ax			; flags
+	mov			ax,					[DOS_TARGET+40]
+	mov			[esp+34],			ax			; cs
+	mov			ax,					[DOS_TARGET+32]
+	mov			[esp+32],			ax			; eip
+
+	mov			ax,					[DOS_TARGET+42] ; ss
+	mov			ss,					ax
+	mov			ax,					[DOS_TARGET+44] ; ds
+	mov			ds,					ax	
+	mov			ax,					[DOS_TARGET+46] ; es
+	mov			es,					ax
+	mov			ax,					[DOS_TARGET+48] ; fs
+	mov			fs,					ax
+	mov			ax,					[DOS_TARGET+50] ; gs
+	mov			gs,					ax
+
+	popad
 	iret
 
 section .data
