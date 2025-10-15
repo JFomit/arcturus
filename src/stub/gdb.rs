@@ -172,6 +172,7 @@ impl SingleThreadBase for DosTarget {
         registers.esp = regs.esp;
         registers.ebp = regs.ebp;
         registers.eip = regs.eip;
+        registers.eflags = regs.eflags;
         registers.cs = regs.segments.cs as u16;
         registers.ds = regs.segments.ds as u16;
         registers.es = regs.segments.es as u16;
