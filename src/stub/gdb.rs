@@ -50,7 +50,7 @@ impl DosTarget {
             }
         }
     }
-    
+
     pub fn remove_breakpoint(&mut self, addr: u32) -> TargetResult<bool, Self> {
         unsafe {
             let buf = &raw mut BREAKS;
@@ -111,6 +111,16 @@ impl Target for DosTarget {
     ) -> Option<target::ext::breakpoints::BreakpointsOps<'_, Self>> {
         Some(self)
     }
+}
+
+macro_rules! min {
+    () => ();
+    ($a: expr, $b: expr $(,)?) => {
+        $a.min($b)
+    };
+    ($a: expr, $($tail: expr),* $(,)?) => {
+        $a.min(min!($($tail,)*))
+    };
 }
 
 // NOTE: to try and make this a marginally more realistic estimate of
@@ -210,8 +220,24 @@ impl SingleThreadBase for DosTarget {
     }
 
     #[inline(never)]
-    fn write_addrs(&mut self, _start_addr: u32, _data: &[u8]) -> TargetResult<(), Self> {
+    fn write_addrs(&mut self, start_addr: u32, data: &[u8]) -> TargetResult<(), Self> {
         // println!("> write_addrs");
+        let write_ptr = start_addr as *mut u8;
+
+        let sizes = bios::mem::request_upper_memory_size()?;
+        let total_mem_size = (sizes.extended1 as u32) * 1024 + (sizes.extended2 as u32) * 64 * 1024;
+
+        // TODO: switch to unreal mode to enable support for reading ta offsets greater
+        // that one segment size
+        let size = min!(
+            total_mem_size.saturating_sub(start_addr),
+            data.len() as u32,
+            0x1_00_00u32.saturating_sub(start_addr)
+        ) as usize;
+        // SAFETY: the previous line ensures write_ptr..write_ptr+size are within segment limits
+        let destination = unsafe { core::slice::from_raw_parts_mut(write_ptr, size as usize) };
+
+        destination.copy_from_slice(&data[..size]);
         Ok(())
     }
 }
