@@ -194,29 +194,24 @@ impl SingleThreadBase for DosTarget {
 
     #[inline(never)]
     fn read_addrs(&mut self, start_addr: u32, data: &mut [u8]) -> TargetResult<usize, Self> {
-        let mut count = 0;
-        unsafe {
-            let mut address = start_addr as *mut u8;
-            let sizes = bios::mem::request_upper_memory_size()?;
-            let total_size = (sizes.extended1 as u32) * 1024 + (sizes.extended2 as u32) * 64 * 1024;
+        let read_ptr = start_addr as *const u8;
 
-            for item in data {
-                if address as u32 >= total_size {
-                    break;
-                }
-                if address as u32 > 0xffff {
-                    // TODO: switch to unreal mode to enable support for reading ta offsets greater
-                    // that one segment size
-                    break;
-                }
+        let sizes = bios::mem::request_upper_memory_size()?;
+        let total_mem_size = (sizes.extended1 as u32) * 1024 + (sizes.extended2 as u32) * 64 * 1024;
 
-                *item = *address;
-                address = address.add(1);
-                count += 1;
-            }
-        }
+        // TODO: switch to unreal mode to enable support for reading ta offsets greater
+        // that one segment size
+        let size = min!(
+            total_mem_size.saturating_sub(start_addr),
+            data.len() as u32,
+            0x1_00_00u32.saturating_sub(start_addr)
+        ) as usize;
+        // SAFETY: the previous line ensures read_ptr..read_ptr+size are within segment limits
+        let source = unsafe { core::slice::from_raw_parts(read_ptr, size) };
+
+        data[..size].copy_from_slice(source);
         // println!("> read_addrs");
-        Ok(count)
+        Ok(size)
     }
 
     #[inline(never)]
