@@ -36,7 +36,7 @@ pub fn init_dbg() -> Result<(), i32> {
         ));
     }
 
-    println!("> starting GDB session...");
+    // println!("> waiting for debugger...");
 
     Ok(())
 }

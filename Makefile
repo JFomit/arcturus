@@ -2,7 +2,7 @@ LINKER:=~/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/x86_64
 
 .PHONEY: clean all rust asm builddir
 all: rust asm
-	ld.lld -Tlink.x target/i386-dos/release/libgdbstub.a target/debugee.o -o gdbstub.elf
+	ld.lld -Tlink.x target/i386-dos/release/libarcturus.a target/debugee.o -o gdbstub.elf
 	objcopy -O binary --binary-architecture=i386 gdbstub.elf gdbstub.com
 
 	objdump -C -S -d -M intel -m i8086 -j .text gdbstub.elf > gdbstub.lst
