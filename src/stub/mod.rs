@@ -1,4 +1,5 @@
 pub(crate) mod conn;
+pub(crate) mod debug_regs;
 pub(crate) mod gdb;
 pub(crate) mod handlers;
 
