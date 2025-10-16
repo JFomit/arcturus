@@ -39,8 +39,8 @@ fn _start() -> ! {
     unsafe {
         let rt = main();
 
-        println!("> stopping GDB session...");
-        asm!("int3");
+        // println!("> stopping GDB session...");
+        // asm!("int3");
 
         _exit(rt);
     }

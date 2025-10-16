@@ -17,7 +17,10 @@ pub struct DosTarget {
 }
 
 #[link_section = ".data"]
-static mut BREAKS: [Breakpoint; 128] = [Breakpoint { addr: 0xdeadbeef, opcode: 0 }; 128];
+static mut BREAKS: [Breakpoint; 128] = [Breakpoint {
+    addr: 0xdeadbeef,
+    opcode: 0,
+}; 128];
 
 impl DosTarget {
     pub fn new() -> DosTarget {
@@ -132,13 +135,14 @@ macro_rules! min {
 // be inlined for smaller codegen
 
 impl SingleThreadBase for DosTarget {
+    #[inline(always)]
     fn support_resume(
         &mut self,
     ) -> Option<target::ext::base::singlethread::SingleThreadResumeOps<'_, Self>> {
         Some(self)
     }
 
-    #[inline(never)]
+    #[inline(always)]
     fn read_registers(
         &mut self,
         regs: &mut gdbstub_arch::x86::reg::X86CoreRegs,
@@ -166,7 +170,7 @@ impl SingleThreadBase for DosTarget {
         Ok(())
     }
 
-    #[inline(never)]
+    #[inline(always)]
     fn write_registers(
         &mut self,
         regs: &gdbstub_arch::x86::reg::X86CoreRegs,
@@ -192,7 +196,7 @@ impl SingleThreadBase for DosTarget {
         Ok(())
     }
 
-    #[inline(never)]
+    #[inline(always)]
     fn read_addrs(&mut self, start_addr: u32, data: &mut [u8]) -> TargetResult<usize, Self> {
         let read_ptr = start_addr as *const u8;
 
@@ -214,7 +218,7 @@ impl SingleThreadBase for DosTarget {
         Ok(size)
     }
 
-    #[inline(never)]
+    #[inline(always)]
     fn write_addrs(&mut self, start_addr: u32, data: &[u8]) -> TargetResult<(), Self> {
         // println!("> write_addrs");
         let write_ptr = start_addr as *mut u8;
@@ -247,22 +251,24 @@ impl target::ext::breakpoints::Breakpoints for DosTarget {
 }
 
 impl target::ext::breakpoints::SwBreakpoint for DosTarget {
-    #[inline(never)]
+    #[inline(always)]
     fn add_sw_breakpoint(&mut self, addr: u32, _kind: usize) -> TargetResult<bool, Self> {
         self.add_breakpoint(addr)
     }
 
-    #[inline(never)]
+    #[inline(always)]
     fn remove_sw_breakpoint(&mut self, addr: u32, _kind: usize) -> TargetResult<bool, Self> {
         self.remove_breakpoint(addr)
     }
 }
 
 impl target::ext::base::singlethread::SingleThreadResume for DosTarget {
+    #[inline(always)]
     fn resume(&mut self, _signal: Option<gdbstub::common::Signal>) -> Result<(), Self::Error> {
         // println!("> resume");
         Ok(())
     }
+    #[inline(always)]
     fn support_single_step(
         &mut self,
     ) -> Option<target::ext::base::singlethread::SingleThreadSingleStepOps<'_, Self>> {
@@ -271,6 +277,7 @@ impl target::ext::base::singlethread::SingleThreadResume for DosTarget {
 }
 
 impl target::ext::base::singlethread::SingleThreadSingleStep for DosTarget {
+    #[inline(always)]
     fn step(&mut self, _signal: Option<gdbstub::common::Signal>) -> Result<(), Self::Error> {
         // Set EFLAGS
         // println!("> step");
