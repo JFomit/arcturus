@@ -1,7 +1,116 @@
+use gdbstub::stub::{state_machine::GdbStubStateMachine, DisconnectReason, SingleThreadStopReason};
+
+use crate::{
+    _exit,
+    bios::com::ComStatusFlags,
+    init::{DOS_TARGET, GDB_STATE_MACHINE},
+};
 
 #[no_mangle]
 pub unsafe extern "C" fn break_handler() {
-    println!("int3");
+    // made in assembly
+    // DOS_TARGET.registers().eip -= 1;
+    send_stop(SingleThreadStopReason::SwBreak(()));
+    let r = gdb_handler_loop();
+
+    match r {
+        Ok(true) => return,
+        Ok(false) => _exit(0),
+        Err(str) => panic!("{}", str),
+    }
 }
+
 #[no_mangle]
-pub unsafe extern "C" fn step_over_handler() {}
+pub unsafe extern "C" fn step_over_handler() {
+    send_stop(SingleThreadStopReason::DoneStep);
+    
+    match gdb_handler_loop() {
+        Ok(true) => (),
+        Ok(false) => _exit(0),
+        Err(str) => panic!("{}", str),
+    }
+}
+
+fn send_stop(reason: SingleThreadStopReason<u32>) {
+    unsafe {
+        GDB_STATE_MACHINE
+            .get()
+            .write(match GDB_STATE_MACHINE.get().read().unwrap() {
+                GdbStubStateMachine::Running(gdb) => {
+                    match gdb.report_stop(DOS_TARGET.get().as_mut().unwrap(), reason) {
+                        Ok(gdb) => Some(gdb),
+                        Err(e) => {
+                            panic!("{}", e);
+                        }
+                    }
+                }
+                gdb => Some(gdb),
+            });
+    }
+}
+
+pub fn gdb_handler_loop() -> Result<bool, &'static str> {
+    let res = loop {
+        unsafe {
+            GDB_STATE_MACHINE.get().write(match GDB_STATE_MACHINE.get().read().unwrap() {
+                GdbStubStateMachine::Idle(mut gdb) => {
+                    let mut byte = gdb.borrow_conn().read();
+                    loop {
+                        if byte.is_err_and(|_| {
+                            let flags = gdb.borrow_conn().status();
+                            flags.contains(ComStatusFlags::TimeOutError)
+                                | flags.contains(ComStatusFlags::TransmitterHoldingRegisterEmpty)
+                        }) {
+                            byte = gdb.borrow_conn().read();
+                            continue;
+                        }
+                        break;
+                    }
+
+                    match gdb.incoming_data(DOS_TARGET.get().as_mut_unchecked(), byte.unwrap()) {
+                        Ok(gdb) => Some(gdb),
+                        Err(e) => break Err(e),
+                    }
+                }
+                GdbStubStateMachine::Running(gdb) => {
+                    // match gdb.report_stop(&mut DOS_TARGET, SingleThreadStopReason::SwBreak(())) {
+                    //     Ok(gdb) => Some(gdb),
+                    //     Err(e) => break Err(e),
+                    // }
+                    GDB_STATE_MACHINE.get().write(Some(gdb.into()));
+                    return Ok(true);
+                }
+                GdbStubStateMachine::CtrlCInterrupt(gdb) => {
+                    match gdb.interrupt_handled(
+                        DOS_TARGET.get().as_mut_unchecked(),
+                        None::<SingleThreadStopReason<u32>>,
+                    ) {
+                        Ok(gdb) => Some(gdb),
+                        Err(e) => break Err(e),
+                    }
+                }
+                GdbStubStateMachine::Disconnected(gdb) => break Ok(gdb.get_reason()),
+            });
+        }
+    };
+
+    match res {
+        Ok(disconnect_reason) => {
+            match disconnect_reason {
+                DisconnectReason::Disconnect => println!("> GDB disconnected"),
+                DisconnectReason::TargetExited(_) => println!("> target exited"),
+                DisconnectReason::TargetTerminated(_) => println!("> target halted"),
+                DisconnectReason::Kill => println!("> killed"),
+            }
+
+            Ok(false)
+        }
+        Err(e) => {
+            if e.is_target_error() {
+                Err("target raised a fatal error")
+            } else {
+                Err("internal error")
+            }
+        }
+    }
+}

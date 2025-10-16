@@ -8,6 +8,7 @@ pub struct MemorySizes {
 }
 
 // source: https://wiki.osdev.org/Detecting_Memory_(x86)#Detecting_Upper_Memory
+#[inline(never)]
 pub fn request_upper_memory_size() -> Result<MemorySizes, ()> {
     let mut lower: u16;
     let mut upper: u16;
@@ -17,11 +18,11 @@ pub fn request_upper_memory_size() -> Result<MemorySizes, ()> {
             "xor    cx, cx",
             "xor    dx, dx",
             // mov ax, 0xe801
-            "int   0x15",      // request upper memory size
+            "int    0x15",      // request upper memory size
             "jc     {0}",
-            "cmp    ah, 0x86", // unsupported function
+            "cmp    ah, 0x86",  // unsupported function
             "je     {0}",
-            "cmp    ah, 0x80", // invalid command
+            "cmp    ah, 0x80",  // invalid command
             "je     {0}",
             "jcxz   2f",        // was the cx register invalid?
             "mov    ax, cx",

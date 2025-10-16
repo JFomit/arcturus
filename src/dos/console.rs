@@ -29,6 +29,7 @@ pub fn read_no_echo() -> u8 {
         asm!(
             "mov    ah, 8",
             "int    0x21",
+            out("ah") _,
             out("al") c
         );
     }
@@ -47,5 +48,13 @@ impl Write for DosWriter {
 }
 
 fn printc(ch: u8) {
-    unsafe { asm!("int 0x21", in("ah") 0x02_u8, in("dl") ch) }
+    unsafe {
+        asm!(
+            "mov    al, 0",
+            "mov    ah, 0x2",
+            "int    0x21",
+            in("dl") ch,
+            out("ax") _
+        );
+    }
 }

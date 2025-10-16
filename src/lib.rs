@@ -1,9 +1,18 @@
 #![no_std]
 #![feature(alloc_error_handler)]
 #![feature(asm_goto_with_outputs)]
+#![feature(sync_unsafe_cell)]
+#![feature(ptr_as_ref_unchecked)]
 #![no_main]
 
-use crate::init::init_dbg;
+use core::arch::asm;
+
+use gdbstub::stub::{state_machine::GdbStubStateMachine, SingleThreadStopReason};
+
+use crate::{
+    init::{init_dbg, DOS_TARGET, GDB_STATE_MACHINE},
+    stub::handlers::gdb_handler_loop,
+};
 
 #[macro_use]
 pub mod dos;
@@ -19,24 +28,44 @@ extern crate rlibc;
 #[no_mangle]
 fn _start() -> ! {
     unsafe { set_interrupt_handlers() };
-
     init_dbg().unwrap();
-
-    unsafe {
-        main();
+    // TODO: is this actually better than falling on int3?
+    match gdb_handler_loop() {
+        Ok(true) => {}
+        Ok(false) => _exit(0),
+        Err(e) => panic!("{}", e),
     }
 
-    _exit(0);
+    unsafe {
+        let rt = main();
+
+        println!("> stopping GDB session...");
+        asm!("int3");
+
+        _exit(rt);
+    }
 }
 
 #[no_mangle]
-fn _exit(rt: u8) -> ! {
+extern "C" fn _exit(rt: u8) -> ! {
+    let machine = unsafe { GDB_STATE_MACHINE.get().read().unwrap() };
+    match machine {
+        GdbStubStateMachine::Running(gdb) => {
+            let _ = gdb.report_stop(
+                unsafe { DOS_TARGET.get().as_mut_unchecked() },
+                SingleThreadStopReason::Exited(rt),
+            );
+        }
+
+        _ => {}
+    }
+
     unsafe { remove_interrupt_handlers() };
     dos::exit(rt);
 }
 
 unsafe extern "C" {
-    unsafe fn main();
+    unsafe fn main() -> u8;
 }
 
 #[link(name = "dbrt", kind = "static")]
